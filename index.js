@@ -100,7 +100,7 @@ const commands = {
     wouldyourather: require('./commands/wouldyourather'),
 
     // Tools
-    ping: require('./commands/ping'),
+    // ping is handled via utils.ping
     speedtest: require('./commands/speedtest'),
     dp: require('./commands/dp'),
     vv: require('./commands/vv'),
@@ -196,9 +196,7 @@ const commands = {
     forward: require('./commands/forward'),
     clear: require('./commands/clear'),
     save: require('./commands/save'),
-    get: (sock, from, msg) => sock.sendMessage(from, { text: "❌ The 'get' command is not implemented yet." }, { quoted: msg }),
-    backup: require('./commands/backup'),
-    restore: require('./commands/restore'),
+    // get, backup, restore removed as they were not implemented
     clone: require('./commands/clone'),
     mention: require('./commands/mention'),
     tagme: require('./commands/tagme'),
@@ -966,7 +964,7 @@ class BotSession {
                                             break;
                                         }
                                         case 'animemenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎌 𝗔𝗡𝗜𝗠𝗘 𝗠𝗘𝗡𝗨 🎌\n💎 ═══════════════════ 💎\n\n  ⚡ .anime\n  ⚡ .manga\n  ⚡ .waifu\n  ⚡ .neko\n  ⚡ .hug\n  ⚡ .kiss\n  ⚡ .bite\n  ⚡ .pat\n  ⚡ .dance\n  ⚡ .wave\n  ⚡ .highfive\n  ⚡ .smile\n  ⚡ .wink\n  ⚡ .happy\n  ⚡ .cry\n  ⚡ .bonk\n  ⚡ .yeet\n  ⚡ .blush\n  ⚡ .smug\n  ⚡ .slap\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🎌 𝗔𝗡𝗜𝗠𝗘 𝗠𝗘𝗡𝗨 🎌\n💎 ═══════════════════ 💎\n\n  ⚡ .anime\n  ⚡ .manga\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
@@ -985,11 +983,7 @@ class BotSession {
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
-                                        case 'logomenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🏢 𝗟𝗢𝗚𝗢 𝗠𝗘𝗡𝗨 🏢\n💎 ═══════════════════ 💎\n\n  ⚡ .neon\n  ⚡ .glitch\n  ⚡ .gold\n  ⚡ .3dtext\n  ⚡ .fire\n  ⚡ .water\n  ⚡ .galaxy\n  ⚡ .marvel\n  ⚡ .gradient\n  ⚡ .luxury\n  ⚡ .royal\n  ⚡ .metal\n  ⚡ .chrome\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
+                                        // logomenu removed as all commands were not implemented
                                         case 'islamicmenu': {
                                             const text = `\n💎 ═══════════════════ 💎\n     🕌 𝗜𝗦𝗟𝗔𝗠𝗜𝗖 𝗠𝗘𝗡𝗨 🕌\n💎 ═══════════════════ 💎\n\n  ⚡ .quran\n  ⚡ .hadith\n  ⚡ .prayer / .salah\n  ⚡ .qibla\n  ⚡ .asmaulhusna / .asma\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
@@ -1197,8 +1191,7 @@ class BotSession {
                                         case 'forward': case 'fwd': await commands.forward(this.sock, from, msg, isOwner, q); break;
                                         case 'clear': await commands.clear(this.sock, from, msg); break;
                                         case 'save': await commands.save(this.sock, from, msg); break;
-                                        case 'backup': await commands.backup(this.sock, from, msg, isOwner); break;
-                                        case 'restore': await commands.restore(this.sock, from, msg, isOwner); break;
+                                        // backup and restore removed
                                         case 'mycmd': case 'mycommands': await commands.mycmd(this.sock, from, msg); break;
                                     }
                                 } catch (e) {
