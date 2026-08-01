@@ -22,7 +22,7 @@ async function allMenu(sock, from, msg, session, commands) {
         '🎌 ANIME HUB': ['anime', 'manga'],
         '🏷️ STICKER LAB': ['sticker', 'toimg', 'tomp3', 'emojimix', 'blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge'],
         '🖼️ IMAGE EDITOR': ['blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge', 'toimg', 'ascii'],
-        '✏️ TEXT MAKER': ['base64', 'binary', 'hex', 'morse', 'qr'],
+        '✏️ TEXT MAKER': ['base64', 'binary', 'hex', 'morse', 'qr', 'glitchtext', 'writetext', 'advancedglow', 'typographytext', 'pixelglitch', 'neonglitch', 'flagtext', 'flag3dtext', 'deletingtext', 'blackpinkstyle'],
         '🕌 ISLAMIC HUB': ['quran', 'hadith', 'prayer', 'qibla', 'asmaulhusna'],
         '🐛 DANGER ZONE': ['hack', 'spam', 'smsbomb', 'callbomb', 'crash', 'freeze', 'lag', 'bug', 'locspam', 'vcardspam', 'buttonspam', 'pollspam', 'contactspam', 'xrestart', 'xshutdown', 'ghostmode', 'nuke', 'deleteall', 'antibug'],
         '🎯 MISC CENTER': ['timer', 'password', 'morse', 'binary', 'hex', 'pastebin', 'news', 'crypto', 'movie', 'anime', 'manga', 'lyrics', 'remind', 'tagme', 'mention', 'snipe', 'editmsg', 'react', 'send', 'forward', 'clear', 'save', 'mycmd']

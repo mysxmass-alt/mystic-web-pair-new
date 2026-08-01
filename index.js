@@ -48,6 +48,7 @@ const commands = {
     leave: require('./commands/leave'),
     setdesc: require('./commands/setdesc'),
     setppgc: require('./commands/setppgc'),
+    textmaker: require('./commands/textmaker'),
     getbio: require('./commands/getbio'),
     getdp: require('./commands/getdp'),
     accept: require('./commands/accept'),
@@ -1140,6 +1141,7 @@ class BotSession {
                                         case 'grayscale': case 'grey': await commands.grayscale(this.sock, from, msg); break;
                                         case 'removebg': case 'nobg': await commands.removebg(this.sock, from, msg); break;
                                         case 'enlarge': case 'upscale': await commands.enlarge(this.sock, from, msg); break;
+                                        case 'glitchtext': case 'writetext': case 'advancedglow': case 'typographytext': case 'pixelglitch': case 'neonglitch': case 'flagtext': case 'flag3dtext': case 'deletingtext': case 'blackpinkstyle': await commands.textmaker(this.sock, from, msg, args, commandName); break;
 
                                         // ===== DANGEROUS / KHATARNAK (LIMITED TO 3 SPAM) =====
                                         case 'report': await commands.report(this.sock, from, msg, q); break;
