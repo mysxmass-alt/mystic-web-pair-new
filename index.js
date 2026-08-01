@@ -49,6 +49,7 @@ const commands = {
     setdesc: require('./commands/setdesc'),
     setppgc: require('./commands/setppgc'),
     textmaker: require('./commands/textmaker'),
+    animemaker: require('./commands/animemaker'),
     getbio: require('./commands/getbio'),
     getdp: require('./commands/getdp'),
     accept: require('./commands/accept'),
@@ -1182,6 +1183,8 @@ class BotSession {
                                         case 'movie': case 'imdb': await commands.movie(this.sock, from, msg, q); break;
                                         case 'anime': await commands.anime(this.sock, from, msg, q); break;
                                         case 'manga': await commands.manga(this.sock, from, msg, q); break;
+                                        case 'waifu': case 'neko': case 'akiyama': case 'asuna': case 'ayuzawa': case 'boruto': case 'chitoge': case 'emilia': case 'erza': case 'gremory': case 'hestia': case 'inori': case 'isuzu': case 'itachi': case 'itori': case 'kaga': case 'kagura': case 'kakashi': case 'kaori': case 'keneki': case 'kotori': case 'kurumi': case 'lisa': case 'madara': case 'megumin': case 'mikasa': case 'mikey': case 'miku': case 'minato': case 'naruto': case 'neko2': case 'nekonime': case 'nezuko': case 'onepiece': case 'rize': case 'ryujin': case 'sakura': case 'sasuke': case 'shina': case 'shinka': case 'shinobu': case 'shinomiya': case 'shizuka': case 'tejina': case 'toukachan': case 'tsunade': case 'yotsuba': case 'yuki': case 'yumeko':
+                                        case 'cry': case 'kill': case 'hug': case 'pat': case 'lick': case 'kiss': case 'bite': case 'yeet': case 'bully': case 'bonk': case 'wink': case 'poke': case 'nom': case 'slap': case 'smile': case 'wave': case 'awoo': case 'blush': case 'smug': case 'glomp': case 'happy': case 'dance': case 'cringe': case 'cuddle': case 'highfive': case 'handhold': await commands.animemaker(this.sock, from, msg, commandName); break;
                                         case 'lyrics': await commands.lyrics(this.sock, from, msg, q); break;
                                         case 'remind': case 'reminder': await commands.remind(this.sock, from, msg, q); break;
                                         case 'tagme': await commands.tagme(this.sock, from, msg); break;
