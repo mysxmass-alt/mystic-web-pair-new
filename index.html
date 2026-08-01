@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>👁️ MYSTIC XMD | Premium WhatsApp Automation</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050505;
+    --sidebar-bg: #0a0a0a;
+    --card-bg: rgba(20, 20, 25, 0.7);
+    --accent: #ff0000;
+    --accent-glow: rgba(255, 0, 0, 0.4);
+    --cyan: #ff4d4d;
+    --text-primary: #ffffff;
+    --text-secondary: #94a3b8;
+    --border: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 0, 0, 0.2);
+    --success: #10b981;
+    --error: #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+  }
+
+  /* ---------- Background Effects ---------- */
+  .bg-glow {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: -1; pointer-events: none;
+    background: 
+      radial-gradient(circle at 80% 20%, rgba(255, 0, 0, 0.15), transparent 40%),
+      radial-gradient(circle at 20% 80%, rgba(255, 77, 77, 0.1), transparent 40%);
+  }
+
+  /* ---------- Sidebar (Straight Format Menu) ---------- */
+  .sidebar {
+    width: 280px;
+    height: 100vh;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    left: 0; top: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 40px 24px;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 60px;
+    text-decoration: none;
+    color: var(--text-primary);
+  }
+
+  .brand-logo {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.2rem;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .brand-name { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.5px; }
+  .brand-version { font-size: 0.65rem; color: var(--accent); font-weight: 700; text-transform: uppercase; margin-top: -4px; }
+
+  .nav-menu { list-style: none; flex-grow: 1; }
+  .nav-item { margin-bottom: 8px; }
+  .nav-link {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+  }
+  .nav-link i { font-size: 1.1rem; }
+  .nav-link:hover, .nav-link.active {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+  }
+  .nav-link.active {
+    background: rgba(255, 0, 0, 0.1);
+    color: var(--accent);
+    border: 1px solid var(--glass-border);
+  }
+
+  .sidebar-footer {
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  /* ---------- Main Content ---------- */
+  .main-content {
+    margin-left: 280px;
+    flex-grow: 1;
+    padding: 60px 80px;
+    max-width: 1400px;
+  }
+
+  /* ---------- Header ---------- */
+  header { margin-bottom: 60px; }
+  .badge {
+    display: inline-block;
+    padding: 6px 14px;
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid var(--glass-border);
+    border-radius: 100px;
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+  }
+  h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+    background: linear-gradient(to right, #fff, #ff0000);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-sub { color: var(--text-secondary); font-size: 1.1rem; max-width: 600px; line-height: 1.6; }
+
+  /* ---------- Stats ---------- */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    margin-bottom: 60px;
+  }
+  .stat-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 30px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .stat-icon {
+    width: 54px; height: 54px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 1.4rem;
+  }
+  .stat-info .value { font-size: 1.8rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .stat-info .label { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ---------- Sections ---------- */
+  section { margin-bottom: 80px; }
+  .section-title {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 1.5rem; font-weight: 700; margin-bottom: 32px;
+  }
+  .section-title i { color: var(--accent); }
+
+  /* ---------- Feature Grid ---------- */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .feature-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 32px;
+    transition: all 0.3s ease;
+  }
+  .feature-card:hover {
+    border-color: var(--glass-border);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  }
+  .feature-card i { font-size: 2rem; color: var(--accent); margin-bottom: 24px; display: block; }
+  .feature-card h3 { font-size: 1.2rem; margin-bottom: 12px; }
+  .feature-card p { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; }
+
+  /* ---------- Connection Panel ---------- */
+  .connect-panel {
+    background: linear-gradient(145deg, rgba(20,20,25,0.8), rgba(10,10,15,0.9));
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .connect-panel::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.1), transparent 70%);
+    pointer-events: none;
+  }
+
+  .instruction-list { list-style: none; margin-bottom: 40px; }
+  .instruction-item {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 16px; color: var(--text-secondary);
+  }
+  .instruction-num {
+    width: 28px; height: 28px;
+    background: var(--accent); color: #fff;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 800;
+  }
+
+  .input-group {
+    max-width: 500px;
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .input-group i {
+    position: absolute; left: 20px; top: 50%;
+    transform: translateY(-50%); color: var(--text-secondary);
+  }
+  input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 20px 18px 54px;
+    color: #fff; font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem; transition: all 0.2s ease;
+  }
+  input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.08); }
+
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 18px 32px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex; align-items: center; gap: 12px;
+  }
+  .btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px var(--accent-glow);
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #status {
+    margin-top: 24px; padding: 16px 20px; border-radius: 12px;
+    font-size: 0.9rem; display: none;
+  }
+  #status.show { display: block; }
+  #status.success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
+  #status.error { background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.2); }
+  #status.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+
+  .code-display {
+    display: none;
+    margin-top: 40px;
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+  }
+  .code-box {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: 10px;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px dashed var(--accent);
+    border-radius: 20px;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-block;
+  }
+  .code-box:hover { background: rgba(168, 85, 247, 0.05); }
+
+  /* ---------- Link Grid ---------- */
+  .link-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .link-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    text-decoration: none;
+    color: var(--text-primary);
+    display: flex; align-items: center; gap: 12px;
+    transition: all 0.2s ease;
+  }
+  .link-card:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--accent); }
+  .link-card i { color: var(--accent); font-size: 1.2rem; }
+
+  /* ---------- Modal ---------- */
+  .modal {
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; transition: 0.3s;
+  }
+  .modal.active { opacity: 1; visibility: visible; }
+  .modal-content {
+    width: 90%; max-width: 500px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    padding: 40px;
+    transform: translateY(20px); transition: 0.3s;
+  }
+  .modal.active .modal-content { transform: translateY(0); }
+  .modal-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 12px; }
+  .modal-desc { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 30px; line-height: 1.6; }
+  .modal-links { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(100px);
+    background: var(--accent); color: #fff; padding: 14px 28px; border-radius: 100px;
+    font-weight: 700; z-index: 3000; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Mobile ---------- */
+  .mobile-header { display: none; }
+  @media (max-width: 1024px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.active { transform: translateX(0); }
+    .main-content { margin-left: 0; padding: 40px 24px; }
+    .mobile-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px; background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border);
+      position: fixed; top: 0; left: 0; right: 0; z-index: 900;
+    }
+    .mobile-toggle { background: none; border: none; color: #fff; font-size: 1.5rem; }
+    header { margin-top: 60px; }
+    h1 { font-size: 2.5rem; }
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  
+  /* ---------- New Animations ---------- */
+  @keyframes textGlow {
+    0%, 100% { text-shadow: 0 0 10px var(--accent-glow), 0 0 20px var(--accent-glow); }
+    50% { text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent); }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .animate-text {
+    animation: textGlow 3s infinite ease-in-out;
+  }
+
+  .stat-card {
+    animation: slideIn 0.8s ease-out forwards;
+  }
+
+  .feature-card {
+    animation: fadeIn 1s ease-in forwards;
+  }
+
+  .brand-logo {
+    animation: float 4s infinite ease-in-out;
+  }
+
+  .nav-link:hover i {
+    transform: rotate(360deg);
+    transition: transform 0.5s ease;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <div class="brand">
+    <div class="brand-logo">M</div>
+    <div class="brand-name">👁️ MYSTIC XMD</div>
+  </div>
+  <button class="mobile-toggle" id="mobileToggle"><i class="fas fa-bars"></i></button>
+</div>
+
+<!-- Sidebar (Straight Menu) -->
+<aside class="sidebar" id="sidebar">
+  <a href="#" class="brand">
+    <div class="brand-logo">M</div>
+    <div>
+      <div class="brand-name">👁️ MYSTIC XMD</div>
+      <div class="brand-version">V4 BETA EDITION</div>
+    </div>
+  </a>
+
+  <ul class="nav-menu">
+    <li class="nav-item"><a href="#" class="nav-link active"><i class="fas fa-home"></i> Dashboard</a></li>
+    <li class="nav-item"><a href="#features" class="nav-link"><i class="fas fa-bolt"></i> Features</a></li>
+    <li class="nav-item"><a href="#connect" class="nav-link"><i class="fas fa-link"></i> Connection</a></li>
+    <li class="nav-item"><a href="#users" class="nav-link"><i class="fas fa-users"></i> Connected Users</a></li>
+    <li class="nav-item"><a href="#links" class="nav-link"><i class="fas fa-external-link-alt"></i> Resources</a></li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <p>&copy; <span id="year"></span> MYSTIC XMD TECH</p>
+    <p style="margin-top: 4px; opacity: 0.5;">All rights reserved.</p>
+  </div>
+</aside>
+
+<main class="main-content">
+  <header>
+    <div class="badge">Session Core: Active</div>
+    <h1 class="animate-text">👁️ MYSTIC XMD</h1>
+    <p class="hero-sub">Experience the next generation of WhatsApp automation. Fast, secure, and built for ultimate performance.</p>
+  </header>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fas fa-server"></i></div>
+      <div class="stat-info">
+        <div class="value" id="activeSockets">0</div>
+        <div class="label">Live Nodes</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
+      <div class="stat-info">
+        <div class="value" id="totalUsers">0</div>
+        <div class="label">Total Operators</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="users">
+    <div class="section-title"><i class="fas fa-users"></i> Connected Users & Devices</div>
+    <div class="feature-grid" id="botsList">
+      <div class="feature-card" style="text-align: center; grid-column: 1 / -1;">
+        <p>No active connections found. Link your bot below!</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="section-title"><i class="fas fa-star"></i> Core Capabilities</div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <i class="fas fa-microchip"></i>
+        <h3>Advanced AI Core</h3>
+        <p>Smart processing for automated replies and complex command execution.</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-cloud-download-alt"></i>
+        <h3>Media Mastery</h3>
+        <p>High-speed media processing, conversion, and seamless management.</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-terminal"></i>
+        <h3>Command Center</h3>
+        <p>Over 120+ professional commands ready at your fingertips.</p>
+      </div>
+      <div class="feature-card">
+        <i class="fas fa-lock"></i>
+        <h3>Encryption Plus</h3>
+        <p>End-to-end security protocols to keep your session data private.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="connect">
+    <div class="section-title"><i class="fas fa-plug"></i> Secure Connection</div>
+    <div class="connect-panel">
+      <ul class="instruction-list">
+        <li class="instruction-item"><div class="instruction-num">1</div> Enter your number with country code</li>
+        <li class="instruction-item"><div class="instruction-num">2</div> Generate your unique pairing key</li>
+        <li class="instruction-item"><div class="instruction-num">3</div> Link device via WhatsApp settings</li>
+      </ul>
+
+      <div class="input-group">
+        <i class="fas fa-phone-alt"></i>
+        <input type="tel" id="phone" placeholder="923000000000">
+      </div>
+      <button class="btn" id="requestPairing"><i class="fas fa-key"></i> Generate Pairing Key</button>
+
+      <div id="status"></div>
+
+      <div class="code-display" id="codeWrap">
+        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 2px;">Your Pairing Key</div>
+        <div class="code-box" id="pairingCode" onclick="copyCode()">0000 0000</div>
+        <div style="color: var(--accent); font-size: 0.75rem; margin-top: 16px; font-weight: 600;">TAP TO COPY</div>
+        <div style="margin-top: 24px; color: var(--text-secondary); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-circle-notch fa-spin" style="color: var(--accent);"></i> Awaiting Authorization...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="links">
+    <div class="section-title"><i class="fas fa-network-wired"></i> Official Resources</div>
+    <div class="link-grid">
+      <a href="https://whatsapp.com/channel/0029VbCd887Bqbr3YdYfnu1v" target="_blank" class="link-card"><i class="fab fa-whatsapp"></i> Updates Channel</a>
+      <a href="https://chat.whatsapp.com/D12bJFae8GCELfFZ7YHuwo?s=cl&p=a&ilr=1" target="_blank" class="link-card"><i class="fab fa-whatsapp"></i> Support Group</a>
+      <a href="https://t.me/mysdomain" target="_blank" class="link-card"><i class="fab fa-telegram"></i> Community</a>
+      <a href="https://t.me/sirmysisundead" target="_blank" class="link-card"><i class="fab fa-telegram"></i> Bot Owner</a>
+    </div>
+  </section>
+</main>
+
+<!-- Channel Modal -->
+<div id="channelModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-title">Welcome to MYSTIC XMD</div>
+    <div class="modal-desc">To access the premium pairing service, please follow our official channels for the latest security updates and news.</div>
+    <div class="modal-links">
+      <a href="https://whatsapp.com/channel/0029VbCd887Bqbr3YdYfnu1v" target="_blank" class="link-card"><i class="fab fa-whatsapp"></i> Updates Channel</a>
+      <a href="https://t.me/mysdomain" target="_blank" class="link-card"><i class="fab fa-telegram"></i> Community</a>
+      <button class="btn" id="confirmFollow" style="margin-top: 20px; width: 100%; justify-content: center;">I Have Followed</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">COPIED TO CLIPBOARD</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  /* ---------------- Navigation ---------------- */
+  const mobileToggle = document.getElementById('mobileToggle');
+  const sidebar = document.getElementById('sidebar');
+  mobileToggle.addEventListener('click', () => sidebar.classList.toggle('active'));
+
+  // Close sidebar when clicking links on mobile
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+
+  /* ---------------- Channel Modal ---------------- */
+  const channelModal = document.getElementById('channelModal');
+  const confirmFollow = document.getElementById('confirmFollow');
+  window.addEventListener('load', () => {
+    if(!localStorage.getItem('mystic_xmd_followed_v4')) {
+      setTimeout(() => channelModal.classList.add('active'), 1500);
+    }
+  });
+  confirmFollow.addEventListener('click', () => {
+    localStorage.setItem('mystic_xmd_followed_v4', '1');
+    channelModal.classList.remove('active');
+  });
+
+  /* ---------------- Toast ---------------- */
+  const toast = document.getElementById('toast');
+  function showToast(msg) {
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  /* ---------------- Status Helper ---------------- */
+  const statusEl = document.getElementById('status');
+  function setStatus(msg, type) {
+    statusEl.innerText = msg;
+    statusEl.className = 'show ' + (type || '');
+  }
+
+  /* ---------------- Pairing Logic ---------------- */
+  const socket = io();
+  const phoneInput = document.getElementById('phone');
+  const requestBtn = document.getElementById('requestPairing');
+  const codeWrap = document.getElementById('codeWrap');
+  const pairingCode = document.getElementById('pairingCode');
+
+  function copyCode() {
+    const code = pairingCode.innerText;
+    if(code === '0000 0000') return;
+    navigator.clipboard.writeText(code.replace(/\s/g,'')).then(() => showToast('KEY COPIED TO CLIPBOARD!'));
+  }
+
+  requestBtn.addEventListener('click', () => {
+    const number = phoneInput.value.replace(/\D/g,'');
+    if(!number || number.length < 10) {
+      setStatus('Please enter a valid phone number.', 'error');
+      phoneInput.focus();
+      return;
+    }
+    requestBtn.disabled = true;
+    requestBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+    setStatus('Initializing secure connection...', 'warning');
+
+    const userId = 'mystic_' + Math.random().toString(36).substr(2,9);
+    socket.emit('set-user', userId);
+    socket.emit('pair-request', { userId, number });
+  });
+
+  socket.on('pairing-code', (code) => {
+    requestBtn.disabled = false;
+    requestBtn.innerHTML = '<i class="fas fa-key"></i> Generate Pairing Key';
+    setStatus('Key generated! Link it in WhatsApp now.', 'success');
+    codeWrap.style.display = 'block';
+    pairingCode.innerText = code;
+    codeWrap.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  socket.on('pair-error', (msg) => {
+    requestBtn.disabled = false;
+    requestBtn.innerHTML = '<i class="fas fa-key"></i> Generate Pairing Key';
+    setStatus(msg || 'Connection failed. Please try again.', 'error');
+  });
+
+  socket.on('connection-status', (status) => {
+    if(status && status.connected) {
+      pairingCode.innerText = 'LINKED';
+      pairingCode.style.color = 'var(--success)';
+      pairingCode.style.borderColor = 'var(--success)';
+      setStatus('System linked successfully!', 'success');
+      showToast('CONNECTED SUCCESSFULLY!');
+      setTimeout(() => location.reload(), 3000);
+    }
+  });
+
+  socket.on('stats', (data) => {
+    if(data) {
+      if(typeof data.activeSockets !== 'undefined') document.getElementById('activeSockets').innerText = data.activeSockets;
+      if(typeof data.totalUsers !== 'undefined') document.getElementById('totalUsers').innerText = data.totalUsers;
+    }
+  });
+
+  function fetchBots() {
+    socket.emit('get-bots-list');
+  }
+
+  socket.on('bots-list', (bots) => {
+    const botsList = document.getElementById('botsList');
+    if (!bots || bots.length === 0) {
+      botsList.innerHTML = '<div class="feature-card" style="text-align: center; grid-column: 1 / -1;"><p>No active connections found. Link your bot below!</p></div>';
+      return;
+    }
+
+    botsList.innerHTML = bots.map(bot => `
+      <div class="feature-card">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+          <div style="width: 40px; height: 40px; background: ${bot.isConnected ? 'var(--success)' : 'var(--error)'}; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-robot" style="font-size: 1rem; color: #fff; margin-bottom: 0;"></i>
+          </div>
+          <div>
+            <h3 style="margin-bottom: 0;">${bot.userName}</h3>
+            <span style="font-size: 0.7rem; color: ${bot.isConnected ? 'var(--success)' : 'var(--error)'}; text-transform: uppercase; font-weight: 800;">
+              ${bot.isConnected ? 'ONLINE' : 'OFFLINE'}
+            </span>
+          </div>
+        </div>
+        <p><i class="fas fa-phone" style="font-size: 0.8rem; display: inline; margin-right: 5px;"></i> ${bot.phoneNumber}</p>
+        <p><i class="fas fa-id-badge" style="font-size: 0.8rem; display: inline; margin-right: 5px;"></i> Session: ${bot.sessionId}</p>
+      </div>
+    `).join('');
+  });
+
+  // Fetch bots every 10 seconds
+  setInterval(fetchBots, 10000);
+  fetchBots();
+
+  document.getElementById('year').innerText = new Date().getFullYear();
+</script>
+</body>
+</html>
