@@ -6,6 +6,7 @@
 <title>👁️ MYSTIC XMD | Premium WhatsApp Automation</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
     --bg: #050505;
@@ -245,6 +246,8 @@
   }
   input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.08); }
 
+  .btn-group { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+
   .btn {
     background: var(--accent);
     color: #fff;
@@ -256,6 +259,10 @@
     cursor: pointer;
     transition: all 0.3s ease;
     display: inline-flex; align-items: center; gap: 12px;
+  }
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
   }
   .btn:hover {
     transform: scale(1.02);
@@ -272,12 +279,13 @@
   #status.error { background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.2); }
   #status.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
 
-  .code-display {
+  .pairing-container {
     display: none;
     margin-top: 40px;
     text-align: center;
     animation: fadeIn 0.5s ease;
   }
+
   .code-box {
     font-family: 'JetBrains Mono', monospace;
     font-size: 2.5rem;
@@ -293,6 +301,16 @@
     display: inline-block;
   }
   .code-box:hover { background: rgba(168, 85, 247, 0.05); }
+
+  .qr-box {
+    background: #fff;
+    padding: 20px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 20px;
+    box-shadow: 0 0 30px rgba(255,255,255,0.1);
+  }
+  #qrcode img { display: block; }
 
   /* ---------- Link Grid ---------- */
   .link-grid {
@@ -361,7 +379,6 @@
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   
-  /* ---------- New Animations ---------- */
   @keyframes textGlow {
     0%, 100% { text-shadow: 0 0 10px var(--accent-glow), 0 0 20px var(--accent-glow); }
     50% { text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent); }
@@ -455,69 +472,79 @@
       <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
       <div class="stat-info">
         <div class="value" id="totalUsers">0</div>
-        <div class="label">Total Operators</div>
+        <div class="label">Total Users</div>
       </div>
     </div>
   </div>
 
   <section id="users">
-    <div class="section-title"><i class="fas fa-users"></i> Connected Users & Devices</div>
+    <div class="section-title"><i class="fas fa-users"></i> Live Connected Bots</div>
     <div class="feature-grid" id="botsList">
       <div class="feature-card" style="text-align: center; grid-column: 1 / -1;">
-        <p>No active connections found. Link your bot below!</p>
+        <i class="fas fa-circle-notch fa-spin"></i>
+        <p>Loading active sessions...</p>
       </div>
     </div>
   </section>
 
   <section id="features">
-    <div class="section-title"><i class="fas fa-star"></i> Core Capabilities</div>
+    <div class="section-title"><i class="fas fa-star"></i> Premium Features</div>
     <div class="feature-grid">
       <div class="feature-card">
-        <i class="fas fa-microchip"></i>
-        <h3>Advanced AI Core</h3>
-        <p>Smart processing for automated replies and complex command execution.</p>
+        <i class="fas fa-shield-alt"></i>
+        <h3>Anti-Delete</h3>
+        <p>Never miss a deleted message again. Automatically captures and logs all revoked content.</p>
       </div>
       <div class="feature-card">
-        <i class="fas fa-cloud-download-alt"></i>
-        <h3>Media Mastery</h3>
-        <p>High-speed media processing, conversion, and seamless management.</p>
+        <i class="fas fa-robot"></i>
+        <h3>Auto Status</h3>
+        <p>Intelligent status viewer with auto-like and reaction capabilities for 24/7 engagement.</p>
       </div>
       <div class="feature-card">
-        <i class="fas fa-terminal"></i>
-        <h3>Command Center</h3>
-        <p>Over 120+ professional commands ready at your fingertips.</p>
-      </div>
-      <div class="feature-card">
-        <i class="fas fa-lock"></i>
-        <h3>Encryption Plus</h3>
-        <p>End-to-end security protocols to keep your session data private.</p>
+        <i class="fas fa-code"></i>
+        <h3>150+ Commands</h3>
+        <p>A massive library of tools for media, group management, AI, and system utilities.</p>
       </div>
     </div>
   </section>
 
   <section id="connect">
-    <div class="section-title"><i class="fas fa-plug"></i> Secure Connection</div>
+    <div class="section-title"><i class="fas fa-plug"></i> Connect Your Account</div>
     <div class="connect-panel">
       <ul class="instruction-list">
-        <li class="instruction-item"><div class="instruction-num">1</div> Enter your number with country code</li>
-        <li class="instruction-item"><div class="instruction-num">2</div> Generate your unique pairing key</li>
-        <li class="instruction-item"><div class="instruction-num">3</div> Link device via WhatsApp settings</li>
+        <li class="instruction-item"><div class="instruction-num">1</div> Choose your pairing method (Code or QR)</li>
+        <li class="instruction-item"><div class="instruction-num">2</div> Follow instructions to link your device</li>
+        <li class="instruction-item"><div class="instruction-num">3</div> Enjoy ultimate automation!</li>
       </ul>
 
       <div class="input-group">
         <i class="fas fa-phone-alt"></i>
-        <input type="tel" id="phone" placeholder="923000000000">
+        <input type="tel" id="phone" placeholder="Enter number with country code (e.g. 923000000000)">
       </div>
-      <button class="btn" id="requestPairing"><i class="fas fa-key"></i> Generate Pairing Key</button>
+
+      <div class="btn-group">
+        <button class="btn" id="requestPairing"><i class="fas fa-key"></i> Generate Pairing Code</button>
+        <button class="btn btn-secondary" id="requestQR"><i class="fas fa-qrcode"></i> Show QR Code</button>
+      </div>
 
       <div id="status"></div>
 
-      <div class="code-display" id="codeWrap">
+      <div class="pairing-container" id="codeWrap">
         <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 2px;">Your Pairing Key</div>
         <div class="code-box" id="pairingCode" onclick="copyCode()">0000 0000</div>
         <div style="color: var(--accent); font-size: 0.75rem; margin-top: 16px; font-weight: 600;">TAP TO COPY</div>
         <div style="margin-top: 24px; color: var(--text-secondary); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
           <i class="fas fa-circle-notch fa-spin" style="color: var(--accent);"></i> Awaiting Authorization...
+        </div>
+      </div>
+
+      <div class="pairing-container" id="qrWrap">
+        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 2px;">Scan QR Code</div>
+        <div class="qr-box">
+          <div id="qrcode"></div>
+        </div>
+        <div style="margin-top: 24px; color: var(--text-secondary); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <i class="fas fa-circle-notch fa-spin" style="color: var(--accent);"></i> Awaiting Scan...
         </div>
       </div>
     </div>
@@ -556,7 +583,6 @@
   const sidebar = document.getElementById('sidebar');
   mobileToggle.addEventListener('click', () => sidebar.classList.toggle('active'));
 
-  // Close sidebar when clicking links on mobile
   document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', () => {
       sidebar.classList.remove('active');
@@ -597,8 +623,12 @@
   const socket = io();
   const phoneInput = document.getElementById('phone');
   const requestBtn = document.getElementById('requestPairing');
+  const requestQRBtn = document.getElementById('requestQR');
   const codeWrap = document.getElementById('codeWrap');
+  const qrWrap = document.getElementById('qrWrap');
   const pairingCode = document.getElementById('pairingCode');
+  const qrcodeEl = document.getElementById('qrcode');
+  let qrcode = null;
 
   function copyCode() {
     const code = pairingCode.innerText;
@@ -606,42 +636,82 @@
     navigator.clipboard.writeText(code.replace(/\s/g,'')).then(() => showToast('KEY COPIED TO CLIPBOARD!'));
   }
 
+  function startPairing(type, number = null) {
+    const userId = 'mystic_' + Math.random().toString(36).substr(2,9);
+    socket.emit('set-user', userId);
+    
+    if (type === 'code') {
+      requestBtn.disabled = true;
+      requestBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+      setStatus('Initializing secure connection for pairing code...', 'warning');
+      socket.emit('pair-request', { userId, number });
+    } else {
+      requestQRBtn.disabled = true;
+      requestQRBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+      setStatus('Initializing secure connection for QR code...', 'warning');
+      socket.emit('pair-request', { userId, number: null });
+    }
+  }
+
   requestBtn.addEventListener('click', () => {
     const number = phoneInput.value.replace(/\D/g,'');
     if(!number || number.length < 10) {
-      setStatus('Please enter a valid phone number.', 'error');
+      setStatus('Please enter a valid phone number for pairing code.', 'error');
       phoneInput.focus();
       return;
     }
-    requestBtn.disabled = true;
-    requestBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
-    setStatus('Initializing secure connection...', 'warning');
+    qrWrap.style.display = 'none';
+    startPairing('code', number);
+  });
 
-    const userId = 'mystic_' + Math.random().toString(36).substr(2,9);
-    socket.emit('set-user', userId);
-    socket.emit('pair-request', { userId, number });
+  requestQRBtn.addEventListener('click', () => {
+    codeWrap.style.display = 'none';
+    startPairing('qr');
   });
 
   socket.on('pairing-code', (code) => {
     requestBtn.disabled = false;
-    requestBtn.innerHTML = '<i class="fas fa-key"></i> Generate Pairing Key';
+    requestBtn.innerHTML = '<i class="fas fa-key"></i> Generate Pairing Code';
     setStatus('Key generated! Link it in WhatsApp now.', 'success');
     codeWrap.style.display = 'block';
     pairingCode.innerText = code;
     codeWrap.scrollIntoView({ behavior: 'smooth' });
   });
 
+  socket.on('qr', (qr) => {
+    requestQRBtn.disabled = false;
+    requestQRBtn.innerHTML = '<i class="fas fa-qrcode"></i> Show QR Code';
+    setStatus('QR Code generated! Scan it in WhatsApp.', 'success');
+    qrWrap.style.display = 'block';
+    
+    qrcodeEl.innerHTML = '';
+    qrcode = new QRCode(qrcodeEl, {
+      text: qr,
+      width: 256,
+      height: 256,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    
+    qrWrap.scrollIntoView({ behavior: 'smooth' });
+  });
+
   socket.on('pair-error', (msg) => {
     requestBtn.disabled = false;
-    requestBtn.innerHTML = '<i class="fas fa-key"></i> Generate Pairing Key';
+    requestQRBtn.disabled = false;
+    requestBtn.innerHTML = '<i class="fas fa-key"></i> Generate Pairing Code';
+    requestQRBtn.innerHTML = '<i class="fas fa-qrcode"></i> Show QR Code';
     setStatus(msg || 'Connection failed. Please try again.', 'error');
   });
 
   socket.on('connection-status', (status) => {
     if(status && status.connected) {
-      pairingCode.innerText = 'LINKED';
-      pairingCode.style.color = 'var(--success)';
-      pairingCode.style.borderColor = 'var(--success)';
+      if (codeWrap.style.display === 'block') {
+        pairingCode.innerText = 'LINKED';
+        pairingCode.style.color = 'var(--success)';
+        pairingCode.style.borderColor = 'var(--success)';
+      }
       setStatus('System linked successfully!', 'success');
       showToast('CONNECTED SUCCESSFULLY!');
       setTimeout(() => location.reload(), 3000);
@@ -685,7 +755,6 @@
     `).join('');
   });
 
-  // Fetch bots every 10 seconds
   setInterval(fetchBots, 10000);
   fetchBots();
 
