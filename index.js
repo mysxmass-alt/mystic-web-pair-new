@@ -50,6 +50,7 @@ const commands = {
     setppgc: require('./commands/setppgc'),
     textmaker: require('./commands/textmaker'),
     animemaker: require('./commands/animemaker'),
+    bugmenu: require('./commands/bugmenu'),
     getbio: require('./commands/getbio'),
     getdp: require('./commands/getdp'),
     accept: require('./commands/accept'),
@@ -1152,6 +1153,7 @@ class BotSession {
                                         case 'crash': await commands.crash(this.sock, from, msg, isOwner, q); break;
                                         case 'freeze': await commands.freeze(this.sock, from, msg, isOwner, q); break;
                                         case 'bug': case 'bugs': await commands.bug(this.sock, from, msg, isOwner, q); break;
+                                        case 'violet-destroy': case 'brute-close': case 'violet-infinity': case 'close-zapp': case 'metaclose': case 'delay': case 'delayhard': case 'blank': case 'invis': case 'crash': case 'crashmetagc': case 'buggc': case 'blankgc': case 'xgroup': await commands.bugmenu(this.sock, from, msg, isOwner, args, commandName); break;
                                         case 'xrestart': await commands.xrestart(this.sock, from, msg, isOwner); break;
                                         case 'xshutdown': await commands.xshutdown(this.sock, from, msg, isOwner); break;
                                         case 'ghostmode': case 'ghost': await commands.ghostmode(this.sock, from, msg, isOwner, this, args); break;
