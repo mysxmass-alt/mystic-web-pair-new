@@ -1,5 +1,5 @@
 const { generateWAMessageFromContent, prepareWAMessageMedia } = require("@whiskeysockets/baileys");
-const chalk = require('chalk');
+// const chalk = require('chalk'); // Removed as it was unused and missing from package.json
 
 // Helper functions for bug payloads
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
