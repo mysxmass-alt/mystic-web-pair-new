@@ -53,3 +53,5 @@ Access at `http://localhost:3000`
 ## License
 
 MIT
+
+<!-- Verified Manus AI connection at 2026-08-01 -->
