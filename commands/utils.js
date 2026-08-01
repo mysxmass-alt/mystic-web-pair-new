@@ -186,17 +186,17 @@ const utils = {
     // 17. Ping
     ping: async (sock, from, msg) => {
         const start = Date.now();
-        await sock.sendMessage(from, { text: 'Pinging...' }, { quoted: msg });
+        const { key } = await sock.sendMessage(from, { text: 'Testing Speed...' }, { quoted: msg });
         const end = Date.now();
-        await sock.sendMessage(from, { text: `*\u{1F4CC} PONG!*\nSpeed: ${end - start}ms` }, { quoted: msg });
+        await sock.sendMessage(from, { text: `Pong 🟢\nSpeed: ${end - start}ms`, edit: key });
     },
 
     // 17b. Standalone Ping (for direct commands.ping calls)
     pingStandalone: async (sock, from, msg) => {
         const start = Date.now();
-        await sock.sendMessage(from, { text: 'Pinging...' }, { quoted: msg });
+        const { key } = await sock.sendMessage(from, { text: 'Testing Speed...' }, { quoted: msg });
         const end = Date.now();
-        await sock.sendMessage(from, { text: `*\u{1F4CC} PONG!*\nSpeed: ${end - start}ms` }, { quoted: msg });
+        await sock.sendMessage(from, { text: `Pong 🟢\nSpeed: ${end - start}ms`, edit: key });
     },
 
     // 18. Speedtest

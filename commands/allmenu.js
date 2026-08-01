@@ -2,13 +2,13 @@ const settings = require('../settings');
 
 async function allMenu(sock, from, msg, session, commands) {
     // ===== COOL HEADER =====
-    let allMenuText = `╭━━━━━━━━━━━━━━━━━━━━━━━━━╮\n`;
-    allMenuText += `┃  ⚡ MYSTIC XMD ALL MENU ⚡  ┃\n`;
-    allMenuText += `╰━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n`;
-    allMenuText += `  ◈ 𝗧𝗢𝗧𝗔𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦: 300+\n`;
-    allMenuText += `  ◈ 𝗩𝗘𝗥𝗦𝗜𝗢𝗡: ${settings.version}\n`;
-    allMenuText += `  ◈ 𝗢𝗪𝗡𝗘𝗥: ${settings.ownerName || 'MYSTIC TECH'}\n`;
-    allMenuText += `  ◈ 𝗣𝗥𝗘𝗙𝗜𝗫: ${settings.prefix}\n\n`;
+    let allMenuText = `╭━━━〔 MYSTIC XMD V2 〕━━━⬣\n`;
+    allMenuText += `┃ ✦ Total Commands: 300+\n`;
+    allMenuText += `┃ ✦ Version: ${settings.version}\n`;
+    allMenuText += `┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}\n`;
+    allMenuText += `┃ ✦ Prefix: ${settings.prefix}\n`;
+    allMenuText += `┃ ✦ Status: Active\n`;
+    allMenuText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
 
     // ===== CATEGORIES =====
     const categories = {
@@ -31,15 +31,13 @@ async function allMenu(sock, from, msg, session, commands) {
 
     // ===== BUILD LIST =====
     for (const [category, cmds] of Object.entries(categories)) {
-        allMenuText += `╭━━━━━━━━━━━━━━━━━━━━━━━━━╮\n`;
-        allMenuText += `┃  ${category}\n`;
-        allMenuText += `╰━━━━━━━━━━━━━━━━━━━━━━━━━╯\n`;
+        allMenuText += `╭━━━〔 ${category} 〕━━━⬣\n`;
         
         cmds.forEach((cmd) => {
-            allMenuText += `┃ .${cmd}\n`;
+            allMenuText += `┃ ➤ .${cmd}\n`;
         });
         
-        allMenuText += `╰━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+        allMenuText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
     }
 
     // ===== FOOTER =====

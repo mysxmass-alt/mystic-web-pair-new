@@ -1350,42 +1350,32 @@ function generateMenuText(userName, session) {
     const uptimeStr = `${hours}h ${minutes}m ${seconds}s`;
     const dateStr = new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
     
-    return `╭━━━━━━━━━━━━━━━━━━━━━━━━━╮
-┃  ⚡ 👁️ MYSTIC XMD ⚡  ┃
-╰━━━━━━━━━━━━━━━━━━━━━━━━━╯
-┃
-┃ 👤 User: ${userName}
-┃ 🤖 Bot: ${settings.botName}
-┃ 🧠 Version: ${settings.version}
-┃ 👑 Owner: ${settings.ownerName || 'MYSTIC TECH'}
-┃ 🔒 Mode: ${mode}
-┃ 🕒 Uptime: ${uptimeStr}
-┃ 🏷️ Prefix: ${settings.prefix}
-┃ 💻 Platform: ${process.platform}
-┃ 📊 RAM: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${(os.totalmem() / 1024 / 1024 / 1024).toFixed(2)}GB
-┃ 📊 Commands: 300+
-┃ 📅 ${dateStr}
-┃
-╭━━━━━━━━━━━━━━━━━━━━━━━━━╮
-┃      📋 MAIN MENU 📋       ┃
-╰━━━━━━━━━━━━━━━━━━━━━━━━━╯
-┃
-┃ .allmenu        → All Commands
-┃ .ownermenu      → Owner Menu
-┃ .groupmenu      → Group Menu
-┃ .aimenu         → AI Module
-┃ .downloadmenu   → Download Center
-┃ .toolsmenu      → Tool Box
-┃ .funmenu        → Fun Zone
-┃ .gamemenu       → Game Hub
-┃ .animemenu      → Anime Hub
-┃ .stickermenu    → Sticker Lab
-┃ .imagemenu      → Image Editor
-┃ .islamicmenu    → Islamic Hub
-┃ .miscmenu       → Misc Center
-┃ .bugmenu        → Danger Zone
-┃
-╰━━━━━━━━━━━━━━━━━━━━━━━━━╯
+    return `╭━━━〔 MYSTIC XMD V2 〕━━━⬣
+┃ ✦ User: ${userName}
+┃ ✦ Bot: ${settings.botName}
+┃ ✦ Version: ${settings.version}
+┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}
+┃ ✦ Mode: ${mode}
+┃ ✦ Prefix: ${settings.prefix}
+┃ ✦ Uptime: ${uptimeStr}
+┃ ✦ Status: Active
+╰━━━━━━━━━━━━━━━━━━━━⬣
+
+➤ .allmenu
+➤ .ownermenu
+➤ .groupmenu
+➤ .aimenu
+➤ .downloadmenu
+➤ .toolsmenu
+➤ .funmenu
+➤ .gamemenu
+➤ .animemenu
+➤ .stickermenu
+➤ .imagemenu
+➤ .islamicmenu
+➤ .miscmenu
+➤ .bugmenu
+
    © POWERED BY MYSTIC TECH`;
 }
 
