@@ -13,8 +13,12 @@ async function aiCommand(sock, from, msg, isAdmin, session, args) {
         const query = args.join(' ');
         try {
             await sock.sendMessage(from, { react: { text: '🤖', key: msg.key } });
-            const response = await session.getAIResponse(from, query);
-            await sock.sendMessage(from, { text: response }, { quoted: msg });
+            const aiRes = await session.getAIResponse(from, query);
+            if (aiRes.type === 'image') {
+                await sock.sendMessage(from, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
+            } else {
+                await sock.sendMessage(from, { text: aiRes.content }, { quoted: msg });
+            }
         } catch (e) {
             await sock.sendMessage(from, { text: "❌ AI Error: " + e.message }, { quoted: msg });
         }
