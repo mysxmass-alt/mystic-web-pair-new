@@ -8,5 +8,7 @@ module.exports = {
     premiumUsers: [],
     connectedBots: [],
     version: '4.0.0',
-    prefix: '.'
+    prefix: '.',
+    pteroEgg: process.env.PTERO_EGG || '1',
+    pteroLocation: process.env.PTERO_LOCATION || '1'
 };

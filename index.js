@@ -1081,7 +1081,10 @@ class BotSession {
                                         
                                         // ===== CASINO & GAMES =====
                                         case 'bal': case 'balance':
+                                        case 'daily':
+                                        case 'beg':
                                         case 'dice':
+                                        case 'coinflip': case 'cf':
                                         case 'slots':
                                         case 'buypanel':
                                         case 'gamemenu':

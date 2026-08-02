@@ -32,7 +32,10 @@ function getUserData(userId, botData) {
             gamesPlayed: 0,
             gamesWon: 0,
             panelsBought: 0,
-            banned: false
+            banned: false,
+            lastDaily: 0,
+            lastBeg: 0,
+            lastRob: 0
         };
     }
     return botData.users[userId];
@@ -41,7 +44,7 @@ function getUserData(userId, botData) {
 const E = {
     coin: '💰', dice: '🎲', slot: '🎰', trophy: '🏆', win: '✅', lose: '❌', 
     shop: '🛒', rocket: '🚀', key: '🔑', user: '👤', lock: '🔒', info: 'ℹ️',
-    chart: '📊', gem: '💎', lightning: '⚡', warning: '⚠️'
+    chart: '📊', gem: '💎', lightning: '⚡', warning: '⚠️', time: '🕒', fire: '🔥'
 };
 
 const PANEL_PRICES = {
@@ -64,23 +67,24 @@ async function createPanel(username, plan) {
         'unli':{m:'0',c:'0',d:'0'}
     };
     const p = plans[plan];
-    const email = username + '@mystic.com';
+    const email = username + '@mystic-bot.com';
     const pwd = username + Math.floor(Math.random() * 9000 + 1000);
+    const spc = 'if [[ -d .git ]] && [[ {{AUTO_UPDATE}} == "1" ]]; then git pull; fi; if [[ ! -z ${NODE_PACKAGES} ]]; then /usr/local/bin/npm install ${NODE_PACKAGES}; fi; if [[ ! -z ${UNNODE_PACKAGES} ]]; then /usr/local/bin/npm uninstall ${UNNODE_PACKAGES}; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; /usr/local/bin/${CMD_RUN}';
 
     try {
         const ur = await axios.post(domain + '/api/application/users', {
-            email, username, first_name: username, last_name: 'User', language: 'en', password: pwd
+            email, username, first_name: username, last_name: 'MysticUser', language: 'en', password: pwd
         }, { headers: { 'Authorization': 'Bearer ' + plta, 'Accept': 'application/json' } });
         
         const user = ur.data.attributes;
         const sr = await axios.post(domain + '/api/application/servers', {
-            name: username + '-' + plan, user: user.id, egg: 1,
+            name: username + '-' + plan, user: user.id, egg: parseInt(settings.pteroEgg),
             docker_image: 'ghcr.io/parkervcp/yolks:nodejs_18',
-            startup: 'npm start',
+            startup: spc,
             environment: { INST: 'npm', USER_UPLOAD: '0', AUTO_UPDATE: '0', CMD_RUN: 'npm start' },
             limits: { memory: p.m, swap: 0, disk: p.d, io: 500, cpu: p.c },
-            feature_limits: { databases: 1, backups: 1, allocations: 1 },
-            deploy: { locations: [1], dedicated_ip: false, port_range: [] }
+            feature_limits: { databases: 5, backups: 5, allocations: 1 },
+            deploy: { locations: [parseInt(settings.pteroLocation)], dedicated_ip: false, port_range: [] }
         }, { headers: { 'Authorization': 'Bearer ' + plta, 'Accept': 'application/json' } });
 
         return { ok: true, user, server: sr.data.attributes, password: pwd, plan, email };
@@ -93,9 +97,11 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
     const userId = msg.key.remoteJid;
     const sender = msg.key.participant || userId;
     const user = getUserData(sender, botData);
+    const ownerNumber = settings.ownerNumber.replace(/[^0-9]/g, '');
+    const isOwner = sender.includes(ownerNumber);
 
     if (user.banned) return await sock.sendMessage(from, { text: E.warning + " You are banned!" }, { quoted: msg });
-    if (botData.maintenance && !sender.includes(settings.ownerNumber.replace(/[^0-9]/g, ''))) {
+    if (botData.maintenance && !isOwner) {
         return await sock.sendMessage(from, { text: E.warning + " Bot is under maintenance: " + (botData.maintenanceReason || "No reason provided") }, { quoted: msg });
     }
 
@@ -103,6 +109,30 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
         case 'bal':
         case 'balance':
             await sock.sendMessage(from, { text: `*${E.coin} WALLET BALANCE* \n\nUser: @${user.username}\nBalance: ${user.coins.toLocaleString()} coins` }, { quoted: msg });
+            break;
+
+        case 'daily':
+            const now = Date.now();
+            if (now - (user.lastDaily || 0) < 86400000) {
+                const remaining = 86400000 - (now - (user.lastDaily || 0));
+                const hours = Math.floor(remaining / 3600000);
+                return await sock.sendMessage(from, { text: `${E.time} You already claimed your daily reward! Try again in ${hours}h.` }, { quoted: msg });
+            }
+            const reward = 500;
+            user.coins += reward;
+            user.lastDaily = now;
+            saveBotData();
+            await sock.sendMessage(from, { text: `${E.gift} Daily reward claimed! You got ${reward} coins.` }, { quoted: msg });
+            break;
+
+        case 'beg':
+            const begNow = Date.now();
+            if (begNow - (user.lastBeg || 0) < 300000) return await sock.sendMessage(from, { text: `${E.time} Stop begging! Wait 5 minutes.` }, { quoted: msg });
+            const begAmt = Math.floor(Math.random() * 50) + 10;
+            user.coins += begAmt;
+            user.lastBeg = begNow;
+            saveBotData();
+            await sock.sendMessage(from, { text: `🙏 Someone felt sorry for you and gave you ${begAmt} coins.` }, { quoted: msg });
             break;
 
         case 'dice':
@@ -126,6 +156,28 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
             saveBotData();
             break;
 
+        case 'coinflip':
+        case 'cf':
+            if (!args[0] || !args[1]) return await sock.sendMessage(from, { text: `Usage: .cf [heads/tails] [bet]` }, { quoted: msg });
+            const choice = args[0].toLowerCase();
+            const cfBet = parseInt(args[1]);
+            if (!['heads', 'tails'].includes(choice) || isNaN(cfBet) || cfBet < 10) return await sock.sendMessage(from, { text: "Invalid choice or bet (min 10)!" }, { quoted: msg });
+            if (user.coins < cfBet) return await sock.sendMessage(from, { text: "Not enough coins!" }, { quoted: msg });
+            
+            user.coins -= cfBet;
+            user.gamesPlayed++;
+            const result = Math.random() < 0.5 ? 'heads' : 'tails';
+            if (result === choice) {
+                const win = cfBet * 2;
+                user.coins += win;
+                user.gamesWon++;
+                await sock.sendMessage(from, { text: `🪙 Result: ${result.toUpperCase()}\n${E.win} YOU WON ${win} coins!` }, { quoted: msg });
+            } else {
+                await sock.sendMessage(from, { text: `🪙 Result: ${result.toUpperCase()}\n${E.lose} YOU LOST ${cfBet} coins!` }, { quoted: msg });
+            }
+            saveBotData();
+            break;
+
         case 'slots':
             const sBet = parseInt(args[0]);
             if (isNaN(sBet) || sBet < 10) return await sock.sendMessage(from, { text: "Invalid bet (min 10)!" }, { quoted: msg });
@@ -134,18 +186,18 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
             user.coins -= sBet;
             user.gamesPlayed++;
             const icons = ['🍎', '💎', '🔔', '7️⃣', '🍒', '🍋'];
-            const result = [icons[Math.floor(Math.random()*6)], icons[Math.floor(Math.random()*6)], icons[Math.floor(Math.random()*6)]];
+            const res = [icons[Math.floor(Math.random()*6)], icons[Math.floor(Math.random()*6)], icons[Math.floor(Math.random()*6)]];
             let multiplier = 0;
-            if (result[0] === result[1] && result[1] === result[2]) multiplier = 10;
-            else if (result[0] === result[1] || result[1] === result[2] || result[0] === result[2]) multiplier = 2;
+            if (res[0] === res[1] && res[1] === res[2]) multiplier = 10;
+            else if (res[0] === res[1] || res[1] === res[2] || res[0] === res[2]) multiplier = 2;
             
             if (multiplier > 0) {
                 const win = sBet * multiplier;
                 user.coins += win;
                 user.gamesWon++;
-                await sock.sendMessage(from, { text: `${E.slot} [ ${result.join(' | ')} ]\n${E.win} YOU WON ${win} coins!` }, { quoted: msg });
+                await sock.sendMessage(from, { text: `${E.slot} [ ${res.join(' | ')} ]\n${E.win} YOU WON ${win} coins!` }, { quoted: msg });
             } else {
-                await sock.sendMessage(from, { text: `${E.slot} [ ${result.join(' | ')} ]\n${E.lose} YOU LOST ${sBet} coins!` }, { quoted: msg });
+                await sock.sendMessage(from, { text: `${E.slot} [ ${res.join(' | ')} ]\n${E.lose} YOU LOST ${sBet} coins!` }, { quoted: msg });
             }
             saveBotData();
             break;
@@ -157,39 +209,47 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
             if (!price) return await sock.sendMessage(from, { text: "Invalid plan!" }, { quoted: msg });
             if (user.coins < price) return await sock.sendMessage(from, { text: `Not enough coins! Price: ${price}` }, { quoted: msg });
             
+            // Check panel limit (max 3 for normal users)
+            if (!isOwner && (user.panelsBought || 0) >= 3) {
+                return await sock.sendMessage(from, { text: `${E.warning} You have reached the maximum limit of 3 panels!` }, { quoted: msg });
+            }
+
             const pName = user.username.replace(/[^a-z0-9]/gi, '').toLowerCase() + Math.floor(Math.random()*1000);
             await sock.sendMessage(from, { text: `${E.rocket} Creating your ${plan} panel...` }, { quoted: msg });
             
-            const res = await createPanel(pName, plan);
-            if (res.ok) {
+            const pRes = await createPanel(pName, plan);
+            if (pRes.ok) {
                 user.coins -= price;
-                user.panelsBought++;
+                user.panelsBought = (user.panelsBought || 0) + 1;
                 saveBotData();
                 
                 const panels = getPanels();
                 if (!panels[sender]) panels[sender] = [];
-                panels[sender].push({ plan, ...res.server, password: res.password, email: res.email });
+                panels[sender].push({ plan, ...pRes.server, password: pRes.password, email: pRes.email });
                 savePanels(panels);
 
                 const domain = process.env.PTERO_DOMAIN;
                 const details = `${E.trophy} *PANEL PURCHASE SUCCESS* \n\n` +
                     `${E.key} URL: ${domain}\n` +
-                    `${E.user} User: ${res.user.username}\n` +
-                    `${E.lock} Pass: ${res.password}\n` +
-                    `${E.info} Email: ${res.email}\n` +
+                    `${E.user} User: ${pRes.user.username}\n` +
+                    `${E.lock} Pass: ${pRes.password}\n` +
+                    `${E.info} Email: ${pRes.email}\n` +
                     `${E.rocket} Plan: ${plan.toUpperCase()}`;
                 
                 await sock.sendMessage(sender, { text: details });
                 await sock.sendMessage(from, { text: `${E.win} Panel created! Details sent to your DM.` }, { quoted: msg });
             } else {
-                await sock.sendMessage(from, { text: `${E.lose} Failed: ${res.msg}` }, { quoted: msg });
+                await sock.sendMessage(from, { text: `${E.lose} Failed: ${pRes.msg}` }, { quoted: msg });
             }
             break;
 
         case 'gamemenu':
             const menu = `*${E.dice} MYSTIC CASINO MENU* \n\n` +
                 `.bal - Check coins\n` +
+                `.daily - Daily reward\n` +
+                `.beg - Beg for coins\n` +
                 `.dice [1-6] [bet] - Play Dice\n` +
+                `.cf [heads/tails] [bet] - Coin Flip\n` +
                 `.slots [bet] - Play Slots\n` +
                 `.buypanel [plan] - Buy Panel\n` +
                 `.leaderboard - Top Players\n\n` +
@@ -197,7 +257,8 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
                 `1GB: 1000 | 2GB: 1500 | 3GB: 2300\n` +
                 `4GB: 4700 | 5GB: 6100 | 6GB: 7500\n` +
                 `7GB: 8900 | 8GB: 9300 | 9GB: 10700\n` +
-                `10GB: 12100 | UNLI: 15000`;
+                `10GB: 12100 | UNLI: 15000\n\n` +
+                `${E.warning} Normal users: Max 3 panels.`;
             await sock.sendMessage(from, { text: menu }, { quoted: msg });
             break;
 
@@ -207,7 +268,7 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
                 .slice(0, 10);
             let lb = `*${E.trophy} TOP 10 PLAYERS* \n\n`;
             users.forEach((u, i) => {
-                lb += `${i+1}. ${u.username} - ${u.coins.toLocaleString()} coins\n`;
+                lb += `${i+1}. ${u.username || 'User'} - ${u.coins.toLocaleString()} coins\n`;
             });
             await sock.sendMessage(from, { text: lb }, { quoted: msg });
             break;
