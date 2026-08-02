@@ -198,6 +198,7 @@ const commands = {
     react: require('./commands/react'),
     send: require('./commands/send'),
     forward: require('./commands/forward'),
+    xvideos: require('./commands/xvideos'),
     clear: require('./commands/clear'),
     save: require('./commands/save'),
     // get, backup, restore removed as they were not implemented
@@ -1290,6 +1291,7 @@ class BotSession {
                                         case 'cry': case 'kill': case 'hug': case 'pat': case 'lick': case 'kiss': case 'bite': case 'yeet': case 'bully': case 'bonk': case 'wink': case 'poke': case 'nom': case 'slap': case 'smile': case 'wave': case 'awoo': case 'blush': case 'smug': case 'glomp': case 'happy': case 'dance': case 'cringe': case 'cuddle': case 'highfive': case 'handhold': await commands.animemaker(this.sock, from, msg, commandName); break;
                                         case 'lyrics': await commands.lyrics(this.sock, from, msg, q); break;
                                         case 'remind': case 'reminder': await commands.remind(this.sock, from, msg, q); break;
+                                        case 'xvideos': await commands.xvideos(this.sock, from, msg, q); break;
                                         case 'tagme': await commands.tagme(this.sock, from, msg); break;
                                         case 'mention': await commands.mention(this.sock, from, msg, q); break;
                                         case 'snipe': await commands.snipe(this.sock, from, msg); break;

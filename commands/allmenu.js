@@ -41,6 +41,7 @@ async function allMenu(sock, from, msg, session, commands) {
         '🖼️ IMAGE EDITOR': ['blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge', 'toimg', 'ascii'],
         '✏️ TEXT MAKER': ['base64', 'binary', 'hex', 'morse', 'qr', 'glitchtext', 'writetext', 'advancedglow', 'typographytext', 'pixelglitch', 'neonglitch', 'flagtext', 'flag3dtext', 'deletingtext', 'blackpinkstyle'],
         '🕌 ISLAMIC HUB': ['quran', 'hadith', 'prayer', 'qibla', 'asmaulhusna'],
+        '🔞 NSFW HUB': ['xvideos'],
         '🐛 DANGER ZONE': ['hack', 'spam', 'smsbomb', 'callbomb', 'crash', 'freeze', 'lag', 'bug', 'violet-destroy', 'brute-close', 'violet-infinity', 'close-zapp', 'metaclose', 'delay', 'delayhard', 'blank', 'invis', 'buggc', 'xgroup', 'crashgc', 'blankgc', 'locspam', 'vcardspam', 'buttonspam', 'pollspam', 'contactspam', 'xrestart', 'xshutdown', 'ghostmode', 'nuke', 'deleteall', 'antibug'],
         '🎯 MISC CENTER': ['timer', 'password', 'morse', 'binary', 'hex', 'pastebin', 'news', 'crypto', 'movie', 'anime', 'manga', 'lyrics', 'remind', 'tagme', 'mention', 'snipe', 'editmsg', 'react', 'send', 'forward', 'clear', 'save', 'mycmd']
     };
