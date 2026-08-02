@@ -53,7 +53,7 @@ const PANEL_PRICES = {
 };
 
 async function createPanel(username, plan) {
-    const domain = process.env.PTERO_DOMAIN;
+    const domain = process.env.PTERO_DOMAIN || settings.pteroDomain;
     const plta = process.env.PTERO_PLTA;
     
     if (!domain || !plta) return { ok: false, msg: 'Pterodactyl credentials not configured!' };
@@ -228,7 +228,7 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
                 panels[sender].push({ plan, ...pRes.server, password: pRes.password, email: pRes.email });
                 savePanels(panels);
 
-                const domain = process.env.PTERO_DOMAIN;
+                const domain = process.env.PTERO_DOMAIN || settings.pteroDomain;
                 const details = `${E.trophy} *PANEL PURCHASE SUCCESS* \n\n` +
                     `${E.key} URL: ${domain}\n` +
                     `${E.user} User: ${pRes.user.username}\n` +

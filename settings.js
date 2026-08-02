@@ -9,6 +9,7 @@ module.exports = {
     connectedBots: [],
     version: '4.0.0',
     prefix: '.',
-    pteroEgg: process.env.PTERO_EGG || '1',
-    pteroLocation: process.env.PTERO_LOCATION || '1'
+    pteroEgg: process.env.PTERO_EGG || '15',
+    pteroLocation: process.env.PTERO_LOCATION || '1',
+    pteroDomain: process.env.PTERO_DOMAIN || 'https://slayers.kevinhosts.qzz.io'
 };

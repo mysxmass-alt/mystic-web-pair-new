@@ -37,7 +37,7 @@ npm start
 | OPENAI_API_KEY | OpenAI API key (optional) |
 | ADMIN_PASSWORD | Dashboard password (default: 305060) |
 | PORT | Web dashboard port |
-| PTERO_DOMAIN | Pterodactyl Panel URL (e.g., https://panel.example.com) |
+| PTERO_DOMAIN | Pterodactyl Panel URL (e.g., https://slayers.kevinhosts.qzz.io) |
 | PTERO_PLTA | Pterodactyl Application API Key |
 
 ## Command Categories
