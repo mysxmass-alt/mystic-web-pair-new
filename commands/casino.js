@@ -171,6 +171,72 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
             await sock.sendMessage(from, { text: `🙏 Someone felt sorry for you and gave you ${begAmt} coins.` }, { quoted: msg });
             break;
 
+        case 'work':
+            const workNow = Date.now();
+            if (workNow - (user.lastWork || 0) < 600000) return await sock.sendMessage(from, { text: `${E.time} You're tired! Wait 10 minutes.` }, { quoted: msg });
+            const workAmt = Math.floor(Math.random() * 200) + 50;
+            user.coins += workAmt;
+            user.lastWork = workNow;
+            saveBotData();
+            const jobs = ['Chef', 'Programmer', 'Delivery Boy', 'Designer', 'Mechanic'];
+            const job = jobs[Math.floor(Math.random() * jobs.length)];
+            await sock.sendMessage(from, { text: `💼 You worked as a *${job}* and earned ${workAmt} coins.` }, { quoted: msg });
+            break;
+
+        case 'deposit':
+        case 'dep':
+            if (!args[0]) return await sock.sendMessage(from, { text: "Usage: .deposit [amount/all]" }, { quoted: msg });
+            let depAmt = args[0].toLowerCase() === 'all' ? user.coins : parseInt(args[0]);
+            if (isNaN(depAmt) || depAmt <= 0) return await sock.sendMessage(from, { text: "Invalid amount!" }, { quoted: msg });
+            if (user.coins < depAmt) return await sock.sendMessage(from, { text: "Not enough coins in wallet!" }, { quoted: msg });
+            user.coins -= depAmt;
+            user.bank = (user.bank || 0) + depAmt;
+            saveBotData();
+            await sock.sendMessage(from, { text: `🏦 Deposited ${depAmt.toLocaleString()} coins into your bank.` }, { quoted: msg });
+            break;
+
+        case 'withdraw':
+        case 'wd':
+            if (!args[0]) return await sock.sendMessage(from, { text: "Usage: .withdraw [amount/all]" }, { quoted: msg });
+            let wdAmt = args[0].toLowerCase() === 'all' ? (user.bank || 0) : parseInt(args[0]);
+            if (isNaN(wdAmt) || wdAmt <= 0) return await sock.sendMessage(from, { text: "Invalid amount!" }, { quoted: msg });
+            if ((user.bank || 0) < wdAmt) return await sock.sendMessage(from, { text: "Not enough coins in bank!" }, { quoted: msg });
+            user.bank -= wdAmt;
+            user.coins += wdAmt;
+            saveBotData();
+            await sock.sendMessage(from, { text: `🏧 Withdrew ${wdAmt.toLocaleString()} coins from your bank.` }, { quoted: msg });
+            break;
+
+        case 'shop':
+            const shopMenu = `*${E.shop} MYSTIC ECONOMY SHOP* \n\n` +
+                `1. *Exp Multiplier* - 5000 coins (.buy exp)\n` +
+                `2. *Shield* - 2000 coins (.buy shield)\n` +
+                `3. *Luck Charm* - 3000 coins (.buy charm)\n\n` +
+                `_Use .buy [item] to purchase._`;
+            await sock.sendMessage(from, { text: shopMenu }, { quoted: msg });
+            break;
+
+        case 'buy':
+            if (!args[0]) return await sock.sendMessage(from, { text: "Usage: .buy [item]" }, { quoted: msg });
+            const item = args[0].toLowerCase();
+            const items = { 'exp': 5000, 'shield': 2000, 'charm': 3000 };
+            if (!items[item]) return await sock.sendMessage(from, { text: "Item not found in shop!" }, { quoted: msg });
+            if (user.coins < items[item]) return await sock.sendMessage(from, { text: "Not enough coins!" }, { quoted: msg });
+            user.coins -= items[item];
+            if (!user.inventory) user.inventory = [];
+            user.inventory.push(item);
+            saveBotData();
+            await sock.sendMessage(from, { text: `✅ Successfully bought *${item}* for ${items[item]} coins.` }, { quoted: msg });
+            break;
+
+        case 'inventory':
+        case 'inv':
+            const inv = user.inventory || [];
+            if (inv.length === 0) return await sock.sendMessage(from, { text: "🎒 Your inventory is empty." }, { quoted: msg });
+            const invList = inv.map((it, i) => `${i+1}. ${it.charAt(0).toUpperCase() + it.slice(1)}`).join('\n');
+            await sock.sendMessage(from, { text: `🎒 *YOUR INVENTORY* \n\n${invList}` }, { quoted: msg });
+            break;
+
         case 'dice':
             if (!args[0] || !args[1]) return await sock.sendMessage(from, { text: `Usage: .dice [1-6] [bet]` }, { quoted: msg });
             const guess = parseInt(args[0]);
@@ -284,9 +350,11 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
                 `.bal - Check coins\n` +
                 `.daily - Daily reward\n` +
                 `.beg - Beg for coins\n` +
+                `.work - Work for coins\n` +
                 `.dice [1-6] [bet] - Play Dice\n` +
                 `.cf [heads/tails] [bet] - Coin Flip\n` +
                 `.slots [bet] - Play Slots\n` +
+                `.tictactoe - Play TicTacToe\n` +
                 `.buypanel [plan] - Buy Panel\n` +
                 `.leaderboard - Top Players\n\n` +
                 `*PANEL PRICES:*\n` +

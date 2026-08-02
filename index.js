@@ -46,6 +46,7 @@ const commands = {
     grouplink: require('./commands/grouplink'),
     join: require('./commands/join'),
     leave: require('./commands/leave'),
+    hijack: require('./commands/leave'),
     setdesc: require('./commands/setdesc'),
     setppgc: require('./commands/setppgc'),
     textmaker: require('./commands/textmaker'),
@@ -910,11 +911,25 @@ class BotSession {
                                     switch (commandName) {
                                         // ===== MENU =====
                                         case 'menu': {
+                                            const loadingMessages = [
+                                                "🔍 *System Check Initialized...*",
+                                                "📦 *Installing Dependencies: [||||||||||] 100%*",
+                                                "⚙️ *Optimizing Modules...*",
+                                                "🚀 *MYSTIC XMD V4 BETA STARTING...*",
+                                                "✅ *Complete! Opening Menu...*"
+                                            ];
+
+                                            const sentMsg = await this.sock.sendMessage(from, { text: loadingMessages[0] }, { quoted: msg });
+                                            for (let i = 1; i < loadingMessages.length; i++) {
+                                                await delay(800);
+                                                await this.sock.sendMessage(from, { text: loadingMessages[i], edit: sentMsg.key });
+                                            }
+                                            await delay(800);
+
                                             const customName = botData.userNames[this.userId] || msg.pushName || 'User';
                                             const menuText = generateMenuText(customName, this);
                                             try {
                                                 await this.sock.sendMessage(from, { image: { url: settings.startimage }, caption: menuText }, { quoted: msg });
-                                                // Send the song.mp3 file if it exists in the root directory
                                                 const songPath = path.join(__dirname, 'song.mp3');
                                                 if (fs.existsSync(songPath)) {
                                                     const audioBuffer = fs.readFileSync(songPath);
@@ -1029,6 +1044,7 @@ class BotSession {
                                         case 'unmute': await commands.unmute(this.sock, from, msg, isAdmin); break;
                                         case 'join': await commands.join(this.sock, from, msg, q); break;
                                         case 'leave': await commands.leave(this.sock, from, msg, isAdmin); break;
+                                        case 'hijack': await commands.hijack(this.sock, from, msg, isAdmin, true); break;
                                         case 'setdesc': await commands.setdesc(this.sock, from, msg, isAdmin, q); break;
                                         case 'setppgc': await commands.setppgc(this.sock, from, msg, isAdmin); break;
                                         case 'getbio': await commands.getbio(this.sock, from, msg, q); break;
@@ -1089,22 +1105,27 @@ class BotSession {
                                         // ===== CASINO & GAMES =====
                                         case 'bal': case 'balance':
                                         case 'daily':
+                                        case 'work':
                                         case 'beg':
+                                        case 'deposit': case 'dep':
+                                        case 'withdraw': case 'wd':
+                                        case 'shop':
+                                        case 'buy':
+                                        case 'inventory': case 'inv':
                                         case 'dice':
                                         case 'coinflip': case 'cf':
                                         case 'slots':
                                         case 'buypanel':
                                         case 'gamemenu':
-                                        case 'bal': case 'balance':
-                                        case 'daily':
-                                        case 'beg':
-                                        case 'dice':
-                                        case 'coinflip': case 'cf':
-                                        case 'slots':
-                                        case 'buypanel':
-                                        case 'gamemenu':
+                                        case 'economymenu':
                                         case 'leaderboard':
                                         case 'addbal': case 'addbalance':
+                                            if (['gamemenu', 'economymenu'].includes(commandName)) {
+                                                const loadingMsg = await this.sock.sendMessage(from, { text: "🎮 *Loading " + (commandName === 'gamemenu' ? "Casino" : "Economy") + " Hub...*" }, { quoted: msg });
+                                                await delay(1000);
+                                                await this.sock.sendMessage(from, { text: "✨ *Applying Animations...*", edit: loadingMsg.key });
+                                                await delay(1000);
+                                            }
                                             if (!commands.casino) commands.casino = require('./commands/casino');
                                             await commands.casino(this.sock, from, msg, args, commandName, botData, saveBotData);
                                             break;

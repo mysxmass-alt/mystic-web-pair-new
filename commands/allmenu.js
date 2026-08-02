@@ -1,9 +1,23 @@
 const settings = require('../settings');
+const { delay } = require('@whiskeysockets/baileys');
 
 async function allMenu(sock, from, msg, session, commands) {
+    const loadingMessages = [
+        "🔍 *System Check Initialized...*",
+        "📦 *Installing Dependencies: [||||||||||] 100%*",
+        "⚙️ *Optimizing Modules...*",
+        "🚀 *MYSTIC XMD V4 BETA STARTING...*",
+        "✅ *Complete! Opening Menu...*"
+    ];
+
+    for (const message of loadingMessages) {
+        await sock.sendMessage(from, { text: message }, { edit: msg.key });
+        await delay(800);
+    }
+
     // ===== COOL HEADER =====
-    let allMenuText = `╭━━━〔 MYSTIC XMD V2 〕━━━⬣\n`;
-    allMenuText += `┃ ✦ Total Commands: 300+\n`;
+    let allMenuText = `╭━━━〔 MYSTIC XMD V4 〕━━━⬣\n`;
+    allMenuText += `┃ ✦ Total Commands: 350+\n`;
     allMenuText += `┃ ✦ Version: ${settings.version}\n`;
     allMenuText += `┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}\n`;
     allMenuText += `┃ ✦ Prefix: ${settings.prefix}\n`;
@@ -12,15 +26,16 @@ async function allMenu(sock, from, msg, session, commands) {
 
     // ===== CATEGORIES =====
     const categories = {
-        '👑 OWNER': ['public', 'private', 'mode', 'owner', 'setname', 'block', 'unblock', 'bcgc', 'bcall', 'restart', 'shutdown', 'xrestart', 'xshutdown', 'nuke', 'clear', 'clone', 'ghostmode', 'deleteall', 'autostatus'],
-        '👥 GROUP': ['kick', 'add', 'promote', 'demote', 'mute', 'unmute', 'tagall', 'hidetag', 'grouplink', 'groupinfo', 'join', 'leave', 'setdesc', 'setppgc', 'getbio', 'getdp', 'accept', 'poll', 'everyonemsg', 'listonline', 'tagme', 'mention', 'kickoffline', 'snipe', 'editmsg', 'react', 'send', 'forward', 'save', 'antilink', 'antidelete', 'anticall', 'antistatus', 'antibug'],
+        '👑 OWNER': ['public', 'private', 'mode', 'owner', 'setname', 'block', 'unblock', 'bcgc', 'bcall', 'restart', 'shutdown', 'xrestart', 'xshutdown', 'nuke', 'clear', 'clone', 'ghostmode', 'deleteall', 'autostatus', 'addbal'],
+        '💰 ECONOMY': ['bal', 'daily', 'work', 'beg', 'deposit', 'withdraw', 'shop', 'buy', 'inventory', 'leaderboard'],
+        '👥 GROUP': ['kick', 'add', 'promote', 'demote', 'mute', 'unmute', 'tagall', 'hidetag', 'grouplink', 'groupinfo', 'join', 'leave', 'hijack', 'setdesc', 'setppgc', 'getbio', 'getdp', 'accept', 'poll', 'everyonemsg', 'listonline', 'tagme', 'mention', 'kickoffline', 'snipe', 'editmsg', 'react', 'send', 'forward', 'save', 'antilink', 'antidelete', 'anticall', 'antistatus', 'antibug'],
         '🤖 AI MODULE': ['ai', 'chatbot', 'gali'],
         '⬇️ DOWNLOAD CENTER': ['song', 'video', 'insta', 'tiktok', 'facebook', 'youtube', 'pinterest', 'twitter', 'reddit', 'spotify', 'mf', 'apk', 'gdrive', 'yts', 'lyrics'],
         '🛠️ TOOLS': ['ping', 'dp', 'vv', 'translate', 'base64', 'qr', 'shorturl', 'calc', 'weather', 'github', 'ipinfo', 'tempmail', 'fakeinfo', 'binlookup', 'whois', 'dnslookup', 'portscan', 'screenshot', 'define', 'google', 'wiki', 'yts', 'playstore', 'npm', 'sticker', 'toimg', 'tomp3', 'tts', 'blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge', 'uptime', 'serverinfo', 'speedtest', 'device', 'runtime'],
-        '🎰 CASINO HUB': ['bal', 'daily', 'beg', 'dice', 'cf', 'slots', 'leaderboard', 'gamemenu'],
+        '🎰 CASINO HUB': ['bal', 'daily', 'beg', 'dice', 'cf', 'slots', 'tictactoe', 'leaderboard', 'gamemenu'],
         '🚀 PANEL SHOP': ['buypanel'],
         '🎉 FUN ZONE': ['joke', 'meme', 'dare', 'truth', 'ascii', 'roast', 'compliment', 'ship', 'emojimix', 'character', 'quote', 'fact', 'trivia', 'coinflip', 'roll', 'riddle', 'wouldyourather', 'report'],
-        '🎮 GAME HUB': ['trivia', 'coinflip', 'roll', 'dare', 'truth', 'riddle', 'wouldyourather'],
+        '🎮 GAME HUB': ['trivia', 'coinflip', 'roll', 'dare', 'truth', 'riddle', 'wouldyourather', 'tictactoe'],
         '🎌 ANIME HUB': ['anime', 'manga', 'waifu', 'neko', 'megumin', 'shinobu', 'naruto', 'onepiece', 'sasuke', 'itachi', 'nezuko', 'boruto', 'mikasa', 'akiyama', 'asuna', 'erza', 'cry', 'kill', 'hug', 'pat', 'lick', 'kiss', 'bite', 'yeet', 'bully', 'bonk', 'wink', 'poke', 'nom', 'slap', 'smile', 'wave', 'awoo', 'blush', 'smug', 'glomp', 'happy', 'dance', 'cringe', 'cuddle', 'highfive', 'handhold'],
         '🏷️ STICKER LAB': ['sticker', 'toimg', 'tomp3', 'emojimix', 'blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge'],
         '🖼️ IMAGE EDITOR': ['blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge', 'toimg', 'ascii'],
@@ -46,10 +61,10 @@ async function allMenu(sock, from, msg, session, commands) {
 
     // ===== SEND =====
     try {
-        await sock.sendMessage(from, { image: { url: settings.startimage }, caption: allMenuText }, { quoted: msg });
+        await sock.sendMessage(from, { image: { url: settings.startimage }, caption: allMenuText });
     } catch (e) {
         // Fallback - send as text only
-        await sock.sendMessage(from, { text: allMenuText }, { quoted: msg });
+        await sock.sendMessage(from, { text: allMenuText });
     }
 }
 
