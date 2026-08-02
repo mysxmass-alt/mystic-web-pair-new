@@ -97,6 +97,23 @@ async function createPanel(username, plan) {
     }
 }
 
+async function listServers() {
+    const domain = process.env.PTERO_DOMAIN || settings.pteroDomain;
+    const plta = process.env.PTERO_PLTA || settings.pteroPlta;
+    
+    if (!domain || !plta) return { ok: false, msg: 'Pterodactyl credentials not configured!' };
+    
+    try {
+        const baseUrl = domain.endsWith('/') ? domain.slice(0, -1) : domain;
+        const res = await axios.get(baseUrl + '/api/application/servers', {
+            headers: { 'Authorization': 'Bearer ' + plta, 'Accept': 'application/json' }
+        });
+        return { ok: true, data: res.data.data };
+    } catch (e) {
+        return { ok: false, msg: e.response?.data?.errors?.[0]?.detail || e.message };
+    }
+}
+
 async function casinoCommand(sock, from, msg, args, commandName, botData, saveBotData) {
     const userId = msg.key.remoteJid;
     const sender = msg.key.participant || userId;
@@ -280,3 +297,4 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
 }
 
 module.exports = casinoCommand;
+module.exports.listServers = listServers;

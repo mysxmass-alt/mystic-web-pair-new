@@ -207,6 +207,7 @@ const commands = {
     listonline: require('./commands/listonline'),
     mycmd: require('./commands/mycmd'),
     gali: require('./commands/gali'),
+    tictactoe: require('./commands/tictactoe'),
     utils: require('./commands/utils')
 };
 
@@ -1129,6 +1130,7 @@ class BotSession {
                                         case 'roll': await commands.roll(this.sock, from, msg, q); break;
                                         case 'riddle': await commands.riddle(this.sock, from, msg); break;
                                         case 'wyr': case 'wouldyourather': await commands.wouldyourather(this.sock, from, msg); break;
+                                        case 'tictactoe': case 'ttt': await commands.tictactoe(this.sock, from, msg, args); break;
 
                                         // ===== TOOLS =====
                                         case 'ping': await commands.utils.ping(this.sock, from, msg); break;
@@ -1263,15 +1265,13 @@ class BotSession {
                         }
                         delete sessions[this.userId];
                         this.sendConnectionStatus();
-                    } else if (statusCode === DisconnectReason.restartRequired || statusCode === DisconnectReason.connectionLost || statusCode === 428) {
-                        this.sendLog(`Connection issue (${statusCode}). Restarting in 3s...`, 'warning');
-                        setTimeout(() => this.initialize(), 3000);
-                    } else if (statusCode === 515) {
-                        this.sendLog('Stream error. Reconnecting immediately...', 'warning');
-                        this.initialize();
                     } else {
-                        this.sendLog(`Connection closed (${statusCode}). Reconnecting in 5s...`, 'info');
-                        setTimeout(() => this.initialize(), 5000);
+                        // Aggressive Reconnection for all other cases
+                        const retryDelay = statusCode === 515 ? 1000 : 5000;
+                        this.sendLog(`Connection closed (${statusCode || 'Unknown'}). Reconnecting in ${retryDelay/1000}s...`, 'warning');
+                        setTimeout(() => {
+                            if (!this.isConnected) this.initialize();
+                        }, retryDelay);
                     }
                 } else if (connection === 'open') {
                     this.isConnected = true;
@@ -1577,6 +1577,23 @@ io.on('connection', (socket) => {
 
     socket.on('get-maintenance-status', () => {
         socket.emit('maintenance-status', { enabled: botData.maintenance || false, reason: botData.maintenanceReason || "" });
+    });
+
+    // PTERODACTYL SERVER MANAGEMENT
+    socket.on('get-ptero-servers', async () => {
+        if (!socket.authenticated) return;
+        try {
+            const casino = require('./commands/casino');
+            // We need a listServers function in casino.js
+            if (casino.listServers) {
+                const servers = await casino.listServers();
+                socket.emit('ptero-servers', servers);
+            } else {
+                socket.emit('ptero-servers', { ok: false, msg: 'Server listing not implemented in casino.js' });
+            }
+        } catch (e) {
+            socket.emit('ptero-servers', { ok: false, msg: e.message });
+        }
     });
 
     socket.on('disconnect', () => {

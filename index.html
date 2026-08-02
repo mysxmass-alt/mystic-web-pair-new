@@ -446,6 +446,7 @@
     <li class="nav-item"><a href="#users" class="nav-link"><i class="fas fa-users"></i> Connected Users</a></li>
     <li class="nav-item"><a href="#credits" class="nav-link"><i class="fas fa-coins"></i> User Credits</a></li>
     <li class="nav-item"><a href="#admin" class="nav-link"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
+    <li class="nav-item"><a href="#ptero" class="nav-link"><i class="fas fa-server"></i> Ptero Servers</a></li>
     <li class="nav-item"><a href="#links" class="nav-link"><i class="fas fa-external-link-alt"></i> Resources</a></li>
   </ul>
 
@@ -571,6 +572,37 @@
           </thead>
           <tbody id="adminUsersTable">
             <tr><td colspan="4" style="padding: 20px; text-align: center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-title" style="font-size: 1.1rem; margin-top: 40px;"><i class="fas fa-bullhorn"></i> Global Broadcast</div>
+      <div class="input-group" style="max-width: 100%;">
+        <textarea id="broadcastMsg" placeholder="Enter message to broadcast to all connected bots..." style="width: 100%; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 16px; padding: 20px; color: #fff; min-height: 100px; font-family: inherit;"></textarea>
+      </div>
+      <button class="btn" id="sendBroadcast" style="margin-top: 15px; width: 100%; justify-content: center;"><i class="fas fa-paper-plane"></i> Send Broadcast</button>
+    </div>
+  </section>
+
+  <section id="ptero">
+    <div class="section-title"><i class="fas fa-server"></i> Pterodactyl Server Management</div>
+    <div class="feature-card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <h3>Active Servers</h3>
+        <button class="btn" id="refreshPtero" style="padding: 8px 16px; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> Refresh List</button>
+      </div>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead style="background: rgba(255, 255, 255, 0.05);">
+            <tr>
+              <th style="padding: 15px 20px;">Server Name</th>
+              <th style="padding: 15px 20px;">Identifier</th>
+              <th style="padding: 15px 20px;">Limits (RAM/CPU)</th>
+              <th style="padding: 15px 20px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="pteroTable">
+            <tr><td colspan="4" style="padding: 20px; text-align: center;">Login to admin to view servers</td></tr>
           </tbody>
         </table>
       </div>
@@ -915,6 +947,64 @@
   socket.on('maintenance-status', (data) => {
     maintStatus.innerText = data.enabled ? 'ON' : 'OFF';
     maintStatus.style.color = data.enabled ? 'var(--error)' : 'var(--success)';
+  });
+
+  /* ---------------- Broadcast Logic ---------------- */
+  const sendBroadcast = document.getElementById('sendBroadcast');
+  const broadcastMsg = document.getElementById('broadcastMsg');
+
+  sendBroadcast.addEventListener('click', () => {
+    const msg = broadcastMsg.value.trim();
+    if (!msg) return showToast('ENTER MESSAGE FIRST');
+    sendBroadcast.disabled = true;
+    sendBroadcast.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+    socket.emit('broadcast', { message: msg });
+  });
+
+  socket.on('broadcast-result', (data) => {
+    sendBroadcast.disabled = false;
+    sendBroadcast.innerHTML = '<i class="fas fa-paper-plane"></i> Send Broadcast';
+    broadcastMsg.value = '';
+    showToast(`SENT TO ${data.totalSent} CHATS ACROSS ${data.totalBots} BOTS`);
+  });
+
+  /* ---------------- Ptero Management ---------------- */
+  const refreshPtero = document.getElementById('refreshPtero');
+  const pteroTable = document.getElementById('pteroTable');
+
+  refreshPtero.addEventListener('click', () => {
+    refreshPtero.disabled = true;
+    refreshPtero.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Loading...';
+    socket.emit('get-ptero-servers');
+  });
+
+  socket.on('ptero-servers', (res) => {
+    refreshPtero.disabled = false;
+    refreshPtero.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh List';
+    
+    if (!res.ok) {
+      pteroTable.innerHTML = `<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--error);">${res.msg}</td></tr>`;
+      return;
+    }
+
+    if (!res.data || res.data.length === 0) {
+      pteroTable.innerHTML = '<tr><td colspan="4" style="padding: 20px; text-align: center;">No servers found</td></tr>';
+      return;
+    }
+
+    pteroTable.innerHTML = res.data.map(s => {
+      const attr = s.attributes;
+      return `
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 12px 20px; font-weight: 700;">${attr.name}</td>
+          <td style="padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;">${attr.identifier}</td>
+          <td style="padding: 12px 20px;">${attr.limits.memory}MB / ${attr.limits.cpu}%</td>
+          <td style="padding: 12px 20px;">
+            <span style="color: var(--success); font-size: 0.7rem; font-weight: 800;">ACTIVE</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
   });
 
   // Periodically refresh credits
