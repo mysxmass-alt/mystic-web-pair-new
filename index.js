@@ -578,6 +578,7 @@ class BotSession {
         this.lastConnectMessageTime = null;
         this.phoneNumber = null;
         this.ghostMode = false;
+        this.chatHistory = {}; 
     }
 
     sendLog(message, type = 'info') {
@@ -598,25 +599,47 @@ class BotSession {
         io.emit('total-active', Object.values(sessions).filter(s => s.isConnected).length);
     }
 
-    async getAIResponse(userJid, userMessage, systemPrompt = "Helpful assistant.") {
+    async getAIResponse(userJid, userMessage) {
         try {
-            // Using a more reliable AI API endpoint
-            const apiUrl = `https://api.siputzx.my.id/api/ai/chatgpt?prompt=${encodeURIComponent(systemPrompt)}&text=${encodeURIComponent(userMessage)}`;
+            if (!this.chatHistory[userJid]) this.chatHistory[userJid] = [];
+            
+            const persona = "Act as a sweet, loving Japanese lady. Always use sweet words and speak like a Japanese lady. Address the user as 'mystic-chan' or in a similar loving Japanese style. Be very affectionate and caring.";
+            
+            // Build context from history
+            let context = `Persona: ${persona}\n\n`;
+            this.chatHistory[userJid].forEach(msg => {
+                context += `${msg.role === 'user' ? 'User' : 'You'}: ${msg.content}\n`;
+            });
+            context += `User: ${userMessage}\nYou:`;
+
+            const apiUrl = `https://prexzyapis.com/ai/aichat?prompt=${encodeURIComponent(context)}`;
             const response = await axios.get(apiUrl);
             
             if (response.data && response.data.status) {
-                return response.data.data;
+                const aiMsg = response.data.result;
+                
+                // Update history
+                this.chatHistory[userJid].push({ role: 'user', content: userMessage });
+                this.chatHistory[userJid].push({ role: 'assistant', content: aiMsg });
+                
+                // Keep history manageable (last 10 messages)
+                if (this.chatHistory[userJid].length > 10) {
+                    this.chatHistory[userJid] = this.chatHistory[userJid].slice(-10);
+                }
+                
+                return aiMsg;
             } else {
-                // Fallback to another API if the first one fails
-                const fallbackUrl = `https://widipe.com/openai?text=${encodeURIComponent(userMessage)}`;
+                // Fallback to previous reliable API if new one fails
+                const fallbackUrl = `https://api.siputzx.my.id/api/ai/chatgpt?prompt=${encodeURIComponent(persona)}&text=${encodeURIComponent(userMessage)}`;
                 const fallbackRes = await axios.get(fallbackUrl);
-                if (fallbackRes.data && fallbackRes.data.result) {
-                    return fallbackRes.data.result;
+                if (fallbackRes.data && fallbackRes.data.status) {
+                    return fallbackRes.data.data;
                 }
                 throw new Error("Invalid API response from all sources");
             }
         } catch (error) {
-            return "\u{274C} AI Error: " + error.message;
+            console.error("AI Error:", error.message);
+            return "❌ AI Error: " + error.message;
         }
     }
 
