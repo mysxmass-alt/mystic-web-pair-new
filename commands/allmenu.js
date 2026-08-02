@@ -17,6 +17,8 @@ async function allMenu(sock, from, msg, session, commands) {
         '🤖 AI MODULE': ['ai', 'chatbot', 'gali'],
         '⬇️ DOWNLOAD CENTER': ['song', 'video', 'insta', 'tiktok', 'facebook', 'youtube', 'pinterest', 'twitter', 'reddit', 'spotify', 'mf', 'apk', 'gdrive', 'yts', 'lyrics'],
         '🛠️ TOOLS': ['ping', 'dp', 'vv', 'translate', 'base64', 'qr', 'shorturl', 'calc', 'weather', 'github', 'ipinfo', 'tempmail', 'fakeinfo', 'binlookup', 'whois', 'dnslookup', 'portscan', 'screenshot', 'define', 'google', 'wiki', 'yts', 'playstore', 'npm', 'sticker', 'toimg', 'tomp3', 'tts', 'blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge', 'uptime', 'serverinfo', 'speedtest', 'device', 'runtime'],
+        '🎰 CASINO HUB': ['bal', 'dice', 'slots', 'leaderboard', 'gamemenu'],
+        '🚀 PANEL SHOP': ['buypanel'],
         '🎉 FUN ZONE': ['joke', 'meme', 'dare', 'truth', 'ascii', 'roast', 'compliment', 'ship', 'emojimix', 'character', 'quote', 'fact', 'trivia', 'coinflip', 'roll', 'riddle', 'wouldyourather', 'report'],
         '🎮 GAME HUB': ['trivia', 'coinflip', 'roll', 'dare', 'truth', 'riddle', 'wouldyourather'],
         '🎌 ANIME HUB': ['anime', 'manga', 'waifu', 'neko', 'megumin', 'shinobu', 'naruto', 'onepiece', 'sasuke', 'itachi', 'nezuko', 'boruto', 'mikasa', 'akiyama', 'asuna', 'erza', 'cry', 'kill', 'hug', 'pat', 'lick', 'kiss', 'bite', 'yeet', 'bully', 'bonk', 'wink', 'poke', 'nom', 'slap', 'smile', 'wave', 'awoo', 'blush', 'smug', 'glomp', 'happy', 'dance', 'cringe', 'cuddle', 'highfive', 'handhold'],

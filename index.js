@@ -759,6 +759,16 @@ class BotSession {
                         let type = Object.keys(messageContent)[0];
                         const text = (messageContent.conversation || messageContent.extendedTextMessage?.text || messageContent.imageMessage?.caption || messageContent.videoMessage?.caption || '').trim();
 
+                        // Ban & Maintenance Check
+                        const sender = msg.key.participant || from;
+                        const isOwner = sender.includes(settings.ownerNumber.replace(/[^0-9]/g, ''));
+                        
+                        if (botData.users && botData.users[sender] && botData.users[sender].banned && !isOwner) return;
+                        if (botData.maintenance && !isOwner && text.startsWith(settings.prefix)) {
+                            await this.sock.sendMessage(from, { text: `⚠️ Bot is under maintenance: ${botData.maintenanceReason || "No reason"}` }, { quoted: msg });
+                            return;
+                        }
+
                         // Handle snipe for deleted messages
                         if (!isMe && !isStatus) {
                             await autoreadModule.handleAutoread(this.sock, msg);
@@ -1075,6 +1085,17 @@ class BotSession {
                                         case 'status': 
                                         case 'autostatus': await commands.autostatus(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
                                         case 'autoreacts': await commands.autoreacts(this.sock, from, msg, isAdmin, this, args); break;
+                                        
+                                        // ===== CASINO & GAMES =====
+                                        case 'bal': case 'balance':
+                                        case 'dice':
+                                        case 'slots':
+                                        case 'buypanel':
+                                        case 'gamemenu':
+                                        case 'leaderboard':
+                                            if (!commands.casino) commands.casino = require('./commands/casino');
+                                            await commands.casino(this.sock, from, msg, args, commandName);
+                                            break;
                                         case 'autoread': 
                                             if (commands.autoread && typeof commands.autoread === 'function') {
                                                 await commands.autoread(this.sock, from, msg);
@@ -1369,6 +1390,7 @@ function generateMenuText(userName, session) {
 ➤ .toolsmenu
 ➤ .funmenu
 ➤ .gamemenu
+➤ .buypanel
 ➤ .animemenu
 ➤ .stickermenu
 ➤ .imagemenu
@@ -1384,7 +1406,7 @@ function generateMenuText(userName, session) {
 io.on('connection', (socket) => {
     // Admin auth
     socket.on('admin-auth', (password) => {
-        const adminPass = process.env.ADMIN_PASSWORD || 'mystic_xmd_techteaM';
+        const adminPass = process.env.ADMIN_PASSWORD || '305060';
         if (password === adminPass) {
             socket.authenticated = true;
             socket.emit('admin-auth-success');
@@ -1525,6 +1547,34 @@ io.on('connection', (socket) => {
     socket.on('get-broadcast-history', () => {
         if (!socket.authenticated) return;
         socket.emit('broadcast-history', botData.broadcastHistory || []);
+    });
+
+    // ADMIN ACTIONS
+    socket.on('get-users-list', () => {
+        if (!socket.authenticated) return;
+        socket.emit('users-list', botData.users || {});
+    });
+
+    socket.on('ban-user', ({ userId, ban }) => {
+        if (!socket.authenticated) return;
+        if (!botData.users) botData.users = {};
+        if (botData.users[userId]) {
+            botData.users[userId].banned = ban;
+            saveBotData();
+            socket.emit('admin-action-success', { message: `User ${userId} ${ban ? 'banned' : 'unbanned'}` });
+        }
+    });
+
+    socket.on('toggle-maintenance', ({ enabled, reason }) => {
+        if (!socket.authenticated) return;
+        botData.maintenance = enabled;
+        botData.maintenanceReason = reason || "";
+        saveBotData();
+        socket.emit('admin-action-success', { message: `Maintenance ${enabled ? 'enabled' : 'disabled'}` });
+    });
+
+    socket.on('get-maintenance-status', () => {
+        socket.emit('maintenance-status', { enabled: botData.maintenance || false, reason: botData.maintenanceReason || "" });
     });
 
     socket.on('disconnect', () => {

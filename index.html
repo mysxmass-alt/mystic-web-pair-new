@@ -444,6 +444,8 @@
     <li class="nav-item"><a href="#features" class="nav-link"><i class="fas fa-bolt"></i> Features</a></li>
     <li class="nav-item"><a href="#connect" class="nav-link"><i class="fas fa-link"></i> Connection</a></li>
     <li class="nav-item"><a href="#users" class="nav-link"><i class="fas fa-users"></i> Connected Users</a></li>
+    <li class="nav-item"><a href="#credits" class="nav-link"><i class="fas fa-coins"></i> User Credits</a></li>
+    <li class="nav-item"><a href="#admin" class="nav-link"><i class="fas fa-user-shield"></i> Admin Panel</a></li>
     <li class="nav-item"><a href="#links" class="nav-link"><i class="fas fa-external-link-alt"></i> Resources</a></li>
   </ul>
 
@@ -501,9 +503,76 @@
         <p>Intelligent status viewer with auto-like and reaction capabilities for 24/7 engagement.</p>
       </div>
       <div class="feature-card">
-        <i class="fas fa-code"></i>
-        <h3>150+ Commands</h3>
-        <p>A massive library of tools for media, group management, AI, and system utilities.</p>
+        <i class="fas fa-dice"></i>
+        <h3>Casino & Panels</h3>
+        <p>Full casino game system and Pterodactyl panel creation directly from WhatsApp.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="credits">
+    <div class="section-title"><i class="fas fa-coins"></i> User Credit Rankings</div>
+    <div class="feature-card" style="padding: 0; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead style="background: rgba(255, 255, 255, 0.05);">
+          <tr>
+            <th style="padding: 15px 20px;">User</th>
+            <th style="padding: 15px 20px;">Credits</th>
+            <th style="padding: 15px 20px;">Games</th>
+          </tr>
+        </thead>
+        <tbody id="creditsTable">
+          <tr><td colspan="3" style="padding: 20px; text-align: center;">Loading user data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="admin">
+    <div class="section-title"><i class="fas fa-user-shield"></i> Owner Admin Panel</div>
+    <div id="adminAuth" class="feature-card">
+      <h3><i class="fas fa-lock"></i> Restricted Access</h3>
+      <p style="margin-bottom: 20px;">Please enter the owner password to access admin controls.</p>
+      <div class="input-group">
+        <i class="fas fa-key"></i>
+        <input type="password" id="adminPassword" placeholder="Enter Admin Password">
+      </div>
+      <button class="btn" id="loginAdmin" style="width: 100%; justify-content: center;">Login to Admin</button>
+    </div>
+
+    <div id="adminPanel" class="feature-card" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h3><i class="fas fa-cogs"></i> Admin Controls</h3>
+        <button class="btn btn-secondary" id="logoutAdmin" style="padding: 8px 16px; font-size: 0.8rem;">Logout</button>
+      </div>
+      
+      <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 30px;">
+        <div class="stat-card" style="padding: 20px;">
+          <div class="stat-info">
+            <div class="label">Maintenance Mode</div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+              <button class="btn" id="toggleMaint" style="padding: 5px 15px; font-size: 0.7rem;">Toggle</button>
+              <span id="maintStatus" style="font-size: 0.8rem; font-weight: 700;">OFF</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title" style="font-size: 1.1rem;"><i class="fas fa-users-cog"></i> User Management</div>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+          <thead style="background: rgba(255, 255, 255, 0.05);">
+            <tr>
+              <th style="padding: 12px 15px;">User ID</th>
+              <th style="padding: 12px 15px;">Username</th>
+              <th style="padding: 12px 15px;">Status</th>
+              <th style="padding: 12px 15px;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="adminUsersTable">
+            <tr><td colspan="4" style="padding: 20px; text-align: center;">Loading...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -757,6 +826,101 @@
 
   setInterval(fetchBots, 10000);
   fetchBots();
+
+  /* ---------------- Admin & Credits Logic ---------------- */
+  const adminAuth = document.getElementById('adminAuth');
+  const adminPanel = document.getElementById('adminPanel');
+  const adminPassword = document.getElementById('adminPassword');
+  const loginAdmin = document.getElementById('loginAdmin');
+  const logoutAdmin = document.getElementById('logoutAdmin');
+  const toggleMaint = document.getElementById('toggleMaint');
+  const maintStatus = document.getElementById('maintStatus');
+  const creditsTable = document.getElementById('creditsTable');
+  const adminUsersTable = document.getElementById('adminUsersTable');
+
+  loginAdmin.addEventListener('click', () => {
+    socket.emit('admin-auth', adminPassword.value);
+  });
+
+  logoutAdmin.addEventListener('click', () => {
+    adminAuth.style.display = 'block';
+    adminPanel.style.display = 'none';
+    adminPassword.value = '';
+    showToast('LOGGED OUT');
+  });
+
+  socket.on('admin-auth-success', () => {
+    adminAuth.style.display = 'none';
+    adminPanel.style.display = 'block';
+    showToast('ADMIN ACCESS GRANTED');
+    socket.emit('get-users-list');
+    socket.emit('get-maintenance-status');
+  });
+
+  socket.on('admin-auth-fail', () => {
+    showToast('INVALID PASSWORD');
+    adminPassword.value = '';
+  });
+
+  socket.on('users-list', (users) => {
+    // Credits Table (Public)
+    const sortedUsers = Object.entries(users)
+      .sort((a, b) => b[1].coins - a[1].coins)
+      .slice(0, 50);
+    
+    creditsTable.innerHTML = sortedUsers.map(([id, u]) => `
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 12px 20px;">${u.username || 'User'}</td>
+        <td style="padding: 12px 20px; color: var(--success); font-weight: 700;">${u.coins.toLocaleString()}</td>
+        <td style="padding: 12px 20px;">${u.gamesPlayed || 0}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="3" style="padding: 20px; text-align: center;">No user data available</td></tr>';
+
+    // Admin Users Table
+    adminUsersTable.innerHTML = Object.entries(users).map(([id, u]) => `
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 10px 15px; font-size: 0.75rem;">${id.split('@')[0]}</td>
+        <td style="padding: 10px 15px;">${u.username || 'User'}</td>
+        <td style="padding: 10px 15px;">
+          <span style="color: ${u.banned ? 'var(--error)' : 'var(--success)'}; font-weight: 700;">
+            ${u.banned ? 'BANNED' : 'ACTIVE'}
+          </span>
+        </td>
+        <td style="padding: 10px 15px;">
+          <button class="btn" style="padding: 4px 8px; font-size: 0.7rem; background: ${u.banned ? 'var(--success)' : 'var(--error)'};" 
+            onclick="toggleBan('${id}', ${!u.banned})">
+            ${u.banned ? 'Unban' : 'Ban'}
+          </button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" style="padding: 20px; text-align: center;">No users found</td></tr>';
+  });
+
+  window.toggleBan = (userId, ban) => {
+    socket.emit('ban-user', { userId, ban });
+  };
+
+  socket.on('admin-action-success', (data) => {
+    showToast(data.message.toUpperCase());
+    socket.emit('get-users-list');
+    socket.emit('get-maintenance-status');
+  });
+
+  toggleMaint.addEventListener('click', () => {
+    const current = maintStatus.innerText === 'ON';
+    const reason = prompt("Enter maintenance reason (optional):");
+    socket.emit('toggle-maintenance', { enabled: !current, reason });
+  });
+
+  socket.on('maintenance-status', (data) => {
+    maintStatus.innerText = data.enabled ? 'ON' : 'OFF';
+    maintStatus.style.color = data.enabled ? 'var(--error)' : 'var(--success)';
+  });
+
+  // Periodically refresh credits
+  setInterval(() => {
+    socket.emit('get-users-list');
+  }, 30000);
 
   document.getElementById('year').innerText = new Date().getFullYear();
 </script>
