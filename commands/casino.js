@@ -126,6 +126,12 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
     const ownerNumber = settings.ownerNumber.replace(/[^0-9]/g, '');
     const isOwner = sender.includes(ownerNumber);
 
+    // Force owner balance and save immediately
+    if (isOwner && user.coins < 1000000000) {
+        user.coins = 1000000000;
+        saveBotData();
+    }
+
     if (user.banned) return await sock.sendMessage(from, { text: E.warning + " You are banned!" }, { quoted: msg });
     if (botData.maintenance && !isOwner) {
         return await sock.sendMessage(from, { text: E.warning + " Bot is under maintenance: " + (botData.maintenanceReason || "No reason provided") }, { quoted: msg });
@@ -134,7 +140,11 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
     switch (commandName) {
         case 'bal':
         case 'balance':
-            await sock.sendMessage(from, { text: `*${E.coin} WALLET BALANCE* \n\nUser: @${user.username}\nBalance: ${user.coins.toLocaleString()} coins` }, { quoted: msg });
+            let balMsg = `*${E.coin} WALLET BALANCE* \n\nUser: @${user.username}\nBalance: ${user.coins.toLocaleString()} coins`;
+            if (isOwner) {
+                balMsg += `\n\n👑 *OWNER STATUS:* Verified\n📱 *JID:* ${sender}`;
+            }
+            await sock.sendMessage(from, { text: balMsg }, { quoted: msg });
             break;
 
         case 'daily':
