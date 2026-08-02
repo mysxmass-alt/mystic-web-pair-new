@@ -54,7 +54,7 @@ const PANEL_PRICES = {
 
 async function createPanel(username, plan) {
     const domain = process.env.PTERO_DOMAIN || settings.pteroDomain;
-    const plta = process.env.PTERO_PLTA;
+    const plta = process.env.PTERO_PLTA || settings.pteroPlta;
     
     if (!domain || !plta) return { ok: false, msg: 'Pterodactyl credentials not configured!' };
 

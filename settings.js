@@ -11,5 +11,7 @@ module.exports = {
     prefix: '.',
     pteroEgg: process.env.PTERO_EGG || '15',
     pteroLocation: process.env.PTERO_LOCATION || '1',
-    pteroDomain: process.env.PTERO_DOMAIN || 'https://slayers.kevinhosts.qzz.io'
+    pteroDomain: process.env.PTERO_DOMAIN || 'https://slayers.kevinhosts.qzz.io',
+    pteroPlta: process.env.PTERO_PLTA || 'ptla_TpdYwB0oeJZfzdigDWMwiym9DNg3BSJDAd5C41Cm56L',
+    pteroPltc: process.env.PTERO_PLTC || 'ptlc_iBMEQ9kCDdfRQWKhk2SQMQzuoP7qzrxdYTliRWr9NEE'
 };

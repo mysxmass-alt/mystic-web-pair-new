@@ -1066,6 +1066,12 @@ class BotSession {
                                         case 'mode': await commands.mode(this.sock, from, msg, isOwner, this); break;
                                         case 'deleteall': await commands.deleteall(this.sock, from, msg, isOwner, q); break;
                                         case 'clone': await commands.clone(this.sock, from, msg, isOwner, q); break;
+                                        case 'plta': 
+                                            if (isOwner) await this.sock.sendMessage(from, { text: `🔑 *PTERO PLTA:* \n${settings.pteroPlta}` }, { quoted: msg });
+                                            break;
+                                        case 'pltc':
+                                            if (isOwner) await this.sock.sendMessage(from, { text: `🔑 *PTERO PLTC:* \n${settings.pteroPltc}` }, { quoted: msg });
+                                            break;
 
                                         // ===== PROTECTION =====
                                         case 'antilink': await commands.antilink(this.sock, from, msg, isAdmin, botData, saveBotData, args); break;
