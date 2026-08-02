@@ -566,6 +566,7 @@
             <tr>
               <th style="padding: 12px 15px;">User ID</th>
               <th style="padding: 12px 15px;">Username</th>
+              <th style="padding: 12px 15px;">Balance</th>
               <th style="padding: 12px 15px;">Status</th>
               <th style="padding: 12px 15px;">Action</th>
             </tr>
@@ -913,23 +914,37 @@
       <tr style="border-bottom: 1px solid var(--border);">
         <td style="padding: 10px 15px; font-size: 0.75rem;">${id.split('@')[0]}</td>
         <td style="padding: 10px 15px;">${u.username || 'User'}</td>
+        <td style="padding: 10px 15px; color: var(--success); font-weight: 700;">${(u.coins || 0).toLocaleString()}</td>
         <td style="padding: 10px 15px;">
           <span style="color: ${u.banned ? 'var(--error)' : 'var(--success)'}; font-weight: 700;">
             ${u.banned ? 'BANNED' : 'ACTIVE'}
           </span>
         </td>
-        <td style="padding: 10px 15px;">
+        <td style="padding: 10px 15px; display: flex; gap: 5px;">
           <button class="btn" style="padding: 4px 8px; font-size: 0.7rem; background: ${u.banned ? 'var(--success)' : 'var(--error)'};" 
             onclick="toggleBan('${id}', ${!u.banned})">
             ${u.banned ? 'Unban' : 'Ban'}
           </button>
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;" 
+            onclick="addBalance('${id}')">
+            Add Bal
+          </button>
         </td>
       </tr>
-    `).join('') || '<tr><td colspan="4" style="padding: 20px; text-align: center;">No users found</td></tr>';
+    `).join('') || '<tr><td colspan="5" style="padding: 20px; text-align: center;">No users found</td></tr>';
   });
 
   window.toggleBan = (userId, ban) => {
     socket.emit('ban-user', { userId, ban });
+  };
+
+  window.addBalance = (userId) => {
+    const amount = prompt("Enter amount to add to balance:");
+    if (amount && !isNaN(amount)) {
+      socket.emit('add-balance', { userId, amount });
+    } else if (amount) {
+      showToast('INVALID AMOUNT');
+    }
   };
 
   socket.on('admin-action-success', (data) => {

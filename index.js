@@ -1576,6 +1576,19 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('add-balance', ({ userId, amount }) => {
+        if (!socket.authenticated) return;
+        if (!botData.users) botData.users = {};
+        if (botData.users[userId]) {
+            const addAmt = parseInt(amount);
+            if (isNaN(addAmt)) return socket.emit('admin-action-success', { message: 'Invalid amount' });
+            
+            botData.users[userId].coins = (botData.users[userId].coins || 0) + addAmt;
+            saveBotData();
+            socket.emit('admin-action-success', { message: `Added ${addAmt} balance to ${userId}` });
+        }
+    });
+
     socket.on('toggle-maintenance', ({ enabled, reason }) => {
         if (!socket.authenticated) return;
         botData.maintenance = enabled;
