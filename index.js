@@ -612,14 +612,16 @@ class BotSession {
 
             if (isAskingForImg) {
                 const imgPrompt = userMessage.replace(/picture|image|photo|draw|generate|show me|pic/gi, '').trim() || "beautiful japanese lady anime style";
-                const artUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=prodia&ratio=1:1`;
+                // Updated to use valid 'Anime' model
+                const artUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=Anime&ratio=1:1`;
                 
                 // We still want a sweet reply along with the image
                 const chatApiUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent("User asked for a picture of: " + imgPrompt + ". Respond as the sweet Japanese lady persona saying you've made it for them.")}`;
                 let caption = "Here is the picture you asked for, mystic-chan! 🌸";
                 try {
                     const chatRes = await axios.get(chatApiUrl);
-                    if (chatRes.data && chatRes.data.status) caption = chatRes.data.result;
+                    // Updated to use 'response' key
+                    if (chatRes.data && chatRes.data.status) caption = chatRes.data.response;
                 } catch (e) {}
 
                 return { type: 'image', url: artUrl, caption };
@@ -636,7 +638,8 @@ class BotSession {
             const response = await axios.get(apiUrl);
             
             if (response.data && response.data.status) {
-                const aiMsg = response.data.result;
+                // Updated to use 'response' key
+                const aiMsg = response.data.response;
                 
                 // Update history
                 this.chatHistory[userJid].push({ role: 'user', content: userMessage });
