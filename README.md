@@ -14,7 +14,9 @@ Ultimate WhatsApp Automation Tool with 120+ Commands
 - AI Chatbot
 - Anti-Delete, Anti-Link, Anti-Call
 - Auto-Status Viewer
-- Web Dashboard with Broadcast
+- Web Dashboard with Broadcast & Admin Panel
+- Casino & Credit System
+- Pterodactyl Panel Integration
 - Telegram Pairing System
 - Premium User System
 
@@ -33,8 +35,10 @@ npm start
 | OWNER_NUMBER | Your WhatsApp number |
 | OWNER_TELEGRAM_ID | Your Telegram ID |
 | OPENAI_API_KEY | OpenAI API key (optional) |
-| ADMIN_PASSWORD | Dashboard password |
+| ADMIN_PASSWORD | Dashboard password (default: 305060) |
 | PORT | Web dashboard port |
+| PTERO_DOMAIN | Pterodactyl Panel URL (e.g., https://panel.example.com) |
+| PTERO_PLTA | Pterodactyl Application API Key |
 
 ## Command Categories
 

@@ -759,16 +759,6 @@ class BotSession {
                         let type = Object.keys(messageContent)[0];
                         const text = (messageContent.conversation || messageContent.extendedTextMessage?.text || messageContent.imageMessage?.caption || messageContent.videoMessage?.caption || '').trim();
 
-                        // Ban & Maintenance Check
-                        const sender = msg.key.participant || from;
-                        const isOwner = sender.includes(settings.ownerNumber.replace(/[^0-9]/g, ''));
-                        
-                        if (botData.users && botData.users[sender] && botData.users[sender].banned && !isOwner) return;
-                        if (botData.maintenance && !isOwner && text.startsWith(settings.prefix)) {
-                            await this.sock.sendMessage(from, { text: `⚠️ Bot is under maintenance: ${botData.maintenanceReason || "No reason"}` }, { quoted: msg });
-                            return;
-                        }
-
                         // Handle snipe for deleted messages
                         if (!isMe && !isStatus) {
                             await autoreadModule.handleAutoread(this.sock, msg);
@@ -845,6 +835,13 @@ class BotSession {
                         // isAuthorized determines if the bot should respond to commands
                         const isAuthorized = this.isPublic || isOwner || isSessionUser || isMe;
 
+                        // Ban & Maintenance Check
+                        if (botData.users && botData.users[sender] && botData.users[sender].banned && !isOwner) return;
+                        if (botData.maintenance && !isOwner && text.startsWith(settings.prefix)) {
+                            await this.sock.sendMessage(from, { text: `⚠️ Bot is under maintenance: ${botData.maintenanceReason || "No reason"}` }, { quoted: msg });
+                            return;
+                        }
+
                         let isAdmin = isOwner;
                         if (!isAdmin && isGroup) {
                             try {
@@ -898,13 +895,13 @@ class BotSession {
                         }
 
                         // Process commands
-                        if (text.toLowerCase().startsWith('.')) {
+                        if (text.toLowerCase().startsWith(settings.prefix)) {
                             // Re-check authorization for commands
                             if (!this.isPublic && !isAuthorized) return;
                             const cmd = text.toLowerCase();
                             const args = text.split(' ').slice(1);
                             const q = args.join(' ');
-                            const commandName = cmd.slice(1).split(' ')[0];
+                            const commandName = cmd.slice(settings.prefix.length).split(' ')[0];
 
                             (async () => {
                                 try {
@@ -971,11 +968,7 @@ class BotSession {
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
-                                        case 'gamemenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎮 𝗚𝗔𝗠𝗘 𝗠𝗘𝗡𝗨 🎮\n💎 ═══════════════════ 💎\n\n  ⚡ .trivia\n  ⚡ .coinflip / .cf\n  ⚡ .roll\n  ⚡ .dare\n  ⚡ .truth\n  ⚡ .riddle\n  ⚡ .wyr / .wouldyourather\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
+
                                         case 'animemenu': {
                                             const text = `\n💎 ═══════════════════ 💎\n     🎌 𝗔𝗡𝗜𝗠𝗘 𝗠𝗘𝗡𝗨 🎌\n💎 ═══════════════════ 💎\n\n  ⚡ .anime\n  ⚡ .manga\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
@@ -1094,7 +1087,7 @@ class BotSession {
                                         case 'gamemenu':
                                         case 'leaderboard':
                                             if (!commands.casino) commands.casino = require('./commands/casino');
-                                            await commands.casino(this.sock, from, msg, args, commandName);
+                                            await commands.casino(this.sock, from, msg, args, commandName, botData, saveBotData);
                                             break;
                                         case 'autoread': 
                                             if (commands.autoread && typeof commands.autoread === 'function') {
@@ -1589,7 +1582,7 @@ io.on('connection', (socket) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, async () => {
+server.listen(PORT, '0.0.0.0', async () => {
     console.log(`\u{1F311} MYSTIC XMD V4 BETA v${settings.version} Server running on port ${PORT}`);
     console.log(`\u{1F4E1} Total commands loaded: 120+`);
     console.log(`\u{1F310} Web Dashboard: http://localhost:${PORT}`);

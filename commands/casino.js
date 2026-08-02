@@ -3,18 +3,12 @@ const path = require('path');
 const axios = require('axios');
 const settings = require('../settings');
 
-const DATA_FILE = './data/bot_data.json';
 const PANELS_FILE = './data/panels.json';
 
 // Initialize files if they don't exist
-if (!fs.existsSync(PANELS_FILE)) fs.writeJsonSync(PANELS_FILE, {});
-
-function getBotData() {
-    try { return fs.readJsonSync(DATA_FILE); } catch (e) { return {}; }
-}
-
-function saveBotData(data) {
-    fs.writeJsonSync(DATA_FILE, data);
+if (!fs.existsSync(PANELS_FILE)) {
+    fs.ensureDirSync('./data');
+    fs.writeJsonSync(PANELS_FILE, {});
 }
 
 function getPanels() {
@@ -95,8 +89,7 @@ async function createPanel(username, plan) {
     }
 }
 
-async function casinoCommand(sock, from, msg, args, commandName) {
-    const botData = getBotData();
+async function casinoCommand(sock, from, msg, args, commandName, botData, saveBotData) {
     const userId = msg.key.remoteJid;
     const sender = msg.key.participant || userId;
     const user = getUserData(sender, botData);
@@ -130,7 +123,7 @@ async function casinoCommand(sock, from, msg, args, commandName) {
             } else {
                 await sock.sendMessage(from, { text: `${E.dice} Dice: ${roll}\n${E.lose} YOU LOST ${bet} coins!` }, { quoted: msg });
             }
-            saveBotData(botData);
+            saveBotData();
             break;
 
         case 'slots':
@@ -154,7 +147,7 @@ async function casinoCommand(sock, from, msg, args, commandName) {
             } else {
                 await sock.sendMessage(from, { text: `${E.slot} [ ${result.join(' | ')} ]\n${E.lose} YOU LOST ${sBet} coins!` }, { quoted: msg });
             }
-            saveBotData(botData);
+            saveBotData();
             break;
 
         case 'buypanel':
@@ -171,7 +164,7 @@ async function casinoCommand(sock, from, msg, args, commandName) {
             if (res.ok) {
                 user.coins -= price;
                 user.panelsBought++;
-                saveBotData(botData);
+                saveBotData();
                 
                 const panels = getPanels();
                 if (!panels[sender]) panels[sender] = [];
