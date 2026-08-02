@@ -17,37 +17,42 @@ async function animemakerCommand(sock, from, msg, command) {
         if (reactionCommands.includes(command) || commonCharacterCommands.includes(command)) {
             let imageUrl = null;
             
-            // Try nekos.best first (very reliable)
-            try {
-                const nekosBestCategories = [
-                    'cry', 'kill', 'hug', 'pat', 'lick', 'kiss', 'bite', 'yeet', 'bonk', 
-                    'wink', 'poke', 'nom', 'slap', 'smile', 'wave', 'awoo', 'blush', 
-                    'smug', 'glomp', 'happy', 'dance', 'cringe', 'cuddle', 'highfive', 
-                    'handhold', 'waifu', 'neko'
-                ];
-                
-                if (nekosBestCategories.includes(command)) {
-                    const response = await axios.get(`https://nekos.best/api/v2/${command}`, { 
-                        timeout: 5000,
-                        headers: { 'User-Agent': 'Mystic-XMD/1.0' }
-                    });
-                    if (response.data && response.data.results && response.data.results[0]) {
-                        imageUrl = response.data.results[0].url;
-                    }
-                }
-            } catch (err) {
-                console.log(`Nekos.best failed for ${command}, trying waifu.pics...`);
-            }
-
-            // Fallback to waifu.pics
-            if (!imageUrl) {
+            // Special handling for waifu command as requested by user
+            if (command === 'waifu') {
+                imageUrl = "https://prexzyapis.com/random/waifu";
+            } else {
+                // Try nekos.best first (very reliable) for other commands
                 try {
-                    const response = await axios.get(`https://api.waifu.pics/sfw/${command}`, { timeout: 5000 });
-                    if (response.data && response.data.url) {
-                        imageUrl = response.data.url;
+                    const nekosBestCategories = [
+                        'cry', 'kill', 'hug', 'pat', 'lick', 'kiss', 'bite', 'yeet', 'bonk', 
+                        'wink', 'poke', 'nom', 'slap', 'smile', 'wave', 'awoo', 'blush', 
+                        'smug', 'glomp', 'happy', 'dance', 'cringe', 'cuddle', 'highfive', 
+                        'handhold', 'waifu', 'neko'
+                    ];
+                    
+                    if (nekosBestCategories.includes(command)) {
+                        const response = await axios.get(`https://nekos.best/api/v2/${command}`, { 
+                            timeout: 5000,
+                            headers: { 'User-Agent': 'Mystic-XMD/1.0' }
+                        });
+                        if (response.data && response.data.results && response.data.results[0]) {
+                            imageUrl = response.data.results[0].url;
+                        }
                     }
                 } catch (err) {
-                    console.log(`Waifu.pics failed for ${command}`);
+                    console.log(`Nekos.best failed for ${command}, trying waifu.pics...`);
+                }
+
+                // Fallback to waifu.pics
+                if (!imageUrl) {
+                    try {
+                        const response = await axios.get(`https://api.waifu.pics/sfw/${command}`, { timeout: 5000 });
+                        if (response.data && response.data.url) {
+                            imageUrl = response.data.url;
+                        }
+                    } catch (err) {
+                        console.log(`Waifu.pics failed for ${command}`);
+                    }
                 }
             }
 
@@ -66,7 +71,6 @@ async function animemakerCommand(sock, from, msg, command) {
             }
         } else {
             // Specific character commands (naruto, onepiece, etc.)
-            // Since the previous API was failing, we'll try a search-based approach or a different reliable API
             try {
                 const url = `https://api.jikan.moe/v4/characters?q=${encodeURIComponent(command)}&limit=1`;
                 const response = await axios.get(url, { timeout: 5000 });
@@ -79,9 +83,9 @@ async function animemakerCommand(sock, from, msg, command) {
                     }, { quoted: msg });
                 } else {
                     // Final fallback to a random anime image if character not found
-                    const fallbackRes = await axios.get('https://api.waifu.pics/sfw/waifu');
+                    // Use the new waifu API for fallback too
                     await sock.sendMessage(from, { 
-                        image: { url: fallbackRes.data.url }, 
+                        image: { url: "https://prexzyapis.com/random/waifu" }, 
                         caption: `🌸 Random Anime Image (Character *${command}* not found)` 
                     }, { quoted: msg });
                 }
