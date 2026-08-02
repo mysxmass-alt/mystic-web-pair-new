@@ -1589,11 +1589,31 @@ io.on('connection', (socket) => {
     });
 });
 
+// Global error handlers to prevent crashes
+process.on('uncaughtException', (err) => {
+    console.error('CRITICAL: Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', async () => {
     console.log(`\u{1F311} MYSTIC XMD V4 BETA v${settings.version} Server running on port ${PORT}`);
     console.log(`\u{1F4E1} Total commands loaded: 120+`);
     console.log(`\u{1F310} Web Dashboard: http://localhost:${PORT}`);
+    
+    // Railway specific: ensure data and tmp directories exist
+    try {
+        await fs.ensureDir('./data');
+        await fs.ensureDir('./tmp');
+        await fs.ensureDir('./temp');
+        await fs.ensureDir('./auth_info');
+    } catch (e) {
+        console.error('Error creating directories:', e.message);
+    }
+    
     await loadExistingSessions();
 });

@@ -44,7 +44,7 @@ function getUserData(userId, botData) {
 const E = {
     coin: '💰', dice: '🎲', slot: '🎰', trophy: '🏆', win: '✅', lose: '❌', 
     shop: '🛒', rocket: '🚀', key: '🔑', user: '👤', lock: '🔒', info: 'ℹ️',
-    chart: '📊', gem: '💎', lightning: '⚡', warning: '⚠️', time: '🕒', fire: '🔥'
+    chart: '📊', gem: '💎', lightning: '⚡', warning: '⚠️', time: '🕒', fire: '🔥', gift: '🎁'
 };
 
 const PANEL_PRICES = {
@@ -72,12 +72,15 @@ async function createPanel(username, plan) {
     const spc = 'if [[ -d .git ]] && [[ {{AUTO_UPDATE}} == "1" ]]; then git pull; fi; if [[ ! -z ${NODE_PACKAGES} ]]; then /usr/local/bin/npm install ${NODE_PACKAGES}; fi; if [[ ! -z ${UNNODE_PACKAGES} ]]; then /usr/local/bin/npm uninstall ${UNNODE_PACKAGES}; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; /usr/local/bin/${CMD_RUN}';
 
     try {
-        const ur = await axios.post(domain + '/api/application/users', {
+        // Ensure domain doesn't have trailing slash
+        const baseUrl = domain.endsWith('/') ? domain.slice(0, -1) : domain;
+        
+        const ur = await axios.post(baseUrl + '/api/application/users', {
             email, username, first_name: username, last_name: 'MysticUser', language: 'en', password: pwd
         }, { headers: { 'Authorization': 'Bearer ' + plta, 'Accept': 'application/json' } });
         
         const user = ur.data.attributes;
-        const sr = await axios.post(domain + '/api/application/servers', {
+        const sr = await axios.post(baseUrl + '/api/application/servers', {
             name: username + '-' + plan, user: user.id, egg: parseInt(settings.pteroEgg),
             docker_image: 'ghcr.io/parkervcp/yolks:nodejs_18',
             startup: spc,
@@ -89,6 +92,7 @@ async function createPanel(username, plan) {
 
         return { ok: true, user, server: sr.data.attributes, password: pwd, plan, email };
     } catch (e) {
+        console.error('Pterodactyl API Error:', e.response?.data || e.message);
         return { ok: false, msg: e.response?.data?.errors?.[0]?.detail || e.message };
     }
 }
