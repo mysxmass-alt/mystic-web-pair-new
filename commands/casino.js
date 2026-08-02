@@ -117,9 +117,11 @@ async function listServers() {
     }
 }
 
+const { jidNormalizedUser } = require('@whiskeysockets/baileys');
+
 async function casinoCommand(sock, from, msg, args, commandName, botData, saveBotData) {
     const userId = msg.key.remoteJid;
-    const sender = msg.key.participant || userId;
+    const sender = jidNormalizedUser(msg.key.participant || userId);
     const user = getUserData(sender, botData);
     const ownerNumber = settings.ownerNumber.replace(/[^0-9]/g, '');
     const isOwner = sender.includes(ownerNumber);

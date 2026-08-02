@@ -825,7 +825,7 @@ class BotSession {
                         const botNumberClean = botNumber.split('@')[0];
 
                         const sender = msg.key.participant || from;
-                        const senderClean = sender.split('@')[0];
+                        const senderClean = jidNormalizedUser(sender).split('@')[0];
 
                         const ownerNumbers = String(settings.ownerNumber).split(',').map(n => n.replace(/\D/g, ''));
                         const isOwner = isMe || ownerNumbers.some(on => senderClean === on) || senderClean === botNumberClean;
