@@ -22,8 +22,12 @@ module.exports = async function(sock, chatId, msg, session, args) {
         // Direct chat
         try {
             await sock.sendMessage(chatId, { react: { text: '💖', key: msg.key } });
-            const aiResponse = await session.getAIResponse(chatId, text);
-            await sock.sendMessage(chatId, { text: aiResponse }, { quoted: msg });
+            const aiRes = await session.getAIResponse(chatId, text);
+            if (aiRes.type === 'image') {
+                await sock.sendMessage(chatId, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
+            } else {
+                await sock.sendMessage(chatId, { text: aiRes.content }, { quoted: msg });
+            }
         } catch (e) {
             await sock.sendMessage(chatId, { text: '⚠️ Gomen, mystic-chan! I had a little trouble responding.' }, { quoted: msg });
         }

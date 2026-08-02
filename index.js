@@ -605,6 +605,25 @@ class BotSession {
             
             const persona = "Act as a sweet, loving Japanese lady. Always use sweet words and speak like a Japanese lady. Address the user as 'mystic-chan' or in a similar loving Japanese style. Be very affectionate and caring.";
             
+            // Check if user is asking for a picture
+            const imgKeywords = ['picture', 'image', 'photo', 'draw', 'generate', 'show me', 'pic'];
+            const isAskingForImg = imgKeywords.some(k => userMessage.toLowerCase().includes(k));
+
+            if (isAskingForImg) {
+                const imgPrompt = userMessage.replace(/picture|image|photo|draw|generate|show me|pic/gi, '').trim() || "beautiful japanese lady anime style";
+                const artUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=prodia&ratio=1:1`;
+                
+                // We still want a sweet reply along with the image
+                const chatApiUrl = `https://prexzyapis.com/ai/aichat?prompt=${encodeURIComponent("User asked for a picture of: " + imgPrompt + ". Respond as the sweet Japanese lady persona saying you've made it for them.")}`;
+                let caption = "Here is the picture you asked for, mystic-chan! 🌸";
+                try {
+                    const chatRes = await axios.get(chatApiUrl);
+                    if (chatRes.data && chatRes.data.status) caption = chatRes.data.result;
+                } catch (e) {}
+
+                return { type: 'image', url: artUrl, caption };
+            }
+
             // Build context from history
             let context = `Persona: ${persona}\n\n`;
             this.chatHistory[userJid].forEach(msg => {
@@ -627,19 +646,19 @@ class BotSession {
                     this.chatHistory[userJid] = this.chatHistory[userJid].slice(-10);
                 }
                 
-                return aiMsg;
+                return { type: 'text', content: aiMsg };
             } else {
                 // Fallback to previous reliable API if new one fails
                 const fallbackUrl = `https://api.siputzx.my.id/api/ai/chatgpt?prompt=${encodeURIComponent(persona)}&text=${encodeURIComponent(userMessage)}`;
                 const fallbackRes = await axios.get(fallbackUrl);
                 if (fallbackRes.data && fallbackRes.data.status) {
-                    return fallbackRes.data.data;
+                    return { type: 'text', content: fallbackRes.data.data };
                 }
                 throw new Error("Invalid API response from all sources");
             }
         } catch (error) {
             console.error("AI Error:", error.message);
-            return "❌ AI Error: " + error.message;
+            return { type: 'text', content: "❌ AI Error: " + error.message };
         }
     }
 
@@ -829,8 +848,12 @@ class BotSession {
                         // AI auto-reply
                         if (this.aiEnabled && !isMe && !isGroup && text && !text.startsWith('.')) {
                             try {
-                                const aiResponse = await this.getAIResponse(from, text);
-                                await this.sock.sendMessage(from, { text: aiResponse }, { quoted: msg });
+                                const aiRes = await this.getAIResponse(from, text);
+                                if (aiRes.type === 'image') {
+                                    await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
+                                } else {
+                                    await this.sock.sendMessage(from, { text: aiRes.content }, { quoted: msg });
+                                }
                             } catch (e) {
                                 console.error("AI Auto-Reply Error:", e);
                             }
