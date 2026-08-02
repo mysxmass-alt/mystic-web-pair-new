@@ -1095,7 +1095,16 @@ class BotSession {
                                         case 'slots':
                                         case 'buypanel':
                                         case 'gamemenu':
+                                        case 'bal': case 'balance':
+                                        case 'daily':
+                                        case 'beg':
+                                        case 'dice':
+                                        case 'coinflip': case 'cf':
+                                        case 'slots':
+                                        case 'buypanel':
+                                        case 'gamemenu':
                                         case 'leaderboard':
+                                        case 'addbal': case 'addbalance':
                                             if (!commands.casino) commands.casino = require('./commands/casino');
                                             await commands.casino(this.sock, from, msg, args, commandName, botData, saveBotData);
                                             break;

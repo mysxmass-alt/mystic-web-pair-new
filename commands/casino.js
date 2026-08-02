@@ -37,6 +37,9 @@ function getUserData(userId, botData) {
             lastBeg: 0,
             lastRob: 0
         };
+    } else if (isOwner && botData.users[userId].coins < 1000000000) {
+        // Ensure owner always has at least 1 billion
+        botData.users[userId].coins = 1000000000;
     }
     return botData.users[userId];
 }
@@ -292,6 +295,24 @@ async function casinoCommand(sock, from, msg, args, commandName, botData, saveBo
                 lb += `${i+1}. ${u.username || 'User'} - ${u.coins.toLocaleString()} coins\n`;
             });
             await sock.sendMessage(from, { text: lb }, { quoted: msg });
+            break;
+
+        case 'addbal':
+        case 'addbalance':
+            if (!isOwner) return await sock.sendMessage(from, { text: E.warning + " This command is for owners only!" }, { quoted: msg });
+            if (!args[0] || !args[1]) return await sock.sendMessage(from, { text: "Usage: .addbal @user [amount]" }, { quoted: msg });
+            
+            const targetJid = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
+                             (args[0].includes('@') ? args[0].replace('@', '') + '@s.whatsapp.net' : null);
+            const amount = parseInt(args[1]);
+
+            if (!targetJid || isNaN(amount)) return await sock.sendMessage(from, { text: "Invalid user or amount!" }, { quoted: msg });
+            
+            const targetUser = getUserData(targetJid, botData);
+            targetUser.coins += amount;
+            saveBotData();
+            
+            await sock.sendMessage(from, { text: `${E.win} Successfully added ${amount.toLocaleString()} coins to @${targetJid.split('@')[0]}`, mentions: [targetJid] }, { quoted: msg });
             break;
     }
 }
