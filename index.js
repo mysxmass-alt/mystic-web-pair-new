@@ -68,6 +68,8 @@ const commands = {
     restart: require('./commands/restart'),
     shutdown: require('./commands/shutdown'),
     mode: require('./commands/mode'),
+    setprefix: require('./commands/setprefix'),
+    setmenu: require('./commands/setmenu'),
 
     // Protection
     antilink: require('./commands/antilink'),

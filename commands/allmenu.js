@@ -28,7 +28,7 @@ async function allMenu(sock, from, msg, session, commands, botData) {
 
     // ===== CATEGORIES =====
     const categories = {
-        '👑 OWNER': ['public', 'private', 'mode', 'owner', 'setname', 'block', 'unblock', 'bcgc', 'bcall', 'restart', 'shutdown', 'xrestart', 'xshutdown', 'nuke', 'clear', 'clone', 'ghostmode', 'deleteall', 'autostatus', 'addbal'],
+        '👑 OWNER': ['public', 'private', 'mode', 'setprefix', 'setmenu', 'owner', 'setname', 'block', 'unblock', 'bcgc', 'bcall', 'restart', 'shutdown', 'xrestart', 'xshutdown', 'nuke', 'clear', 'clone', 'ghostmode', 'deleteall', 'autostatus', 'addbal'],
         '💰 ECONOMY': ['bal', 'daily', 'work', 'beg', 'deposit', 'withdraw', 'shop', 'buy', 'inventory', 'leaderboard'],
         '👥 GROUP': ['kick', 'add', 'promote', 'demote', 'mute', 'unmute', 'tagall', 'hidetag', 'grouplink', 'groupinfo', 'join', 'leave', 'hijack', 'setdesc', 'setppgc', 'getbio', 'getdp', 'accept', 'poll', 'everyonemsg', 'listonline', 'tagme', 'mention', 'kickoffline', 'snipe', 'editmsg', 'react', 'send', 'forward', 'save', 'antilink', 'antidelete', 'anticall', 'antistatus', 'antibug'],
         '🤖 AI MODULE': ['ai', 'chatbot', 'gali'],
