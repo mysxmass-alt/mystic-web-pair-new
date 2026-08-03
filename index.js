@@ -508,7 +508,7 @@ const DATA_FILE = './data/bot_data.json';
 fs.ensureDirSync(AUTH_DIR);
 fs.ensureDirSync('./data');
 
-let botData = { antilinkGroups: {}, totalBots: 0, registeredBots: [], statusSettings: {}, antiDelete: {}, userNames: {}, antiCall: {}, broadcastHistory: [] };
+let botData = { antilinkGroups: {}, totalBots: 0, registeredBots: [], statusSettings: {}, antiDelete: {}, userNames: {}, antiCall: {}, broadcastHistory: [], globalPrefix: '.', menuType: 'text' };
 if (fs.existsSync(DATA_FILE)) {
     try { botData = fs.readJsonSync(DATA_FILE); } catch (e) {}
 }
@@ -978,13 +978,14 @@ class BotSession {
                         }
 
                         // Process commands
-                        if (text.toLowerCase().startsWith(settings.prefix)) {
+                        const currentPrefix = botData.globalPrefix || settings.prefix || '.';
+                        if (text.toLowerCase().startsWith(currentPrefix)) {
                             // Re-check authorization for commands
                             if (!this.isPublic && !isAuthorized) return;
                             const cmd = text.toLowerCase();
                             const args = text.split(' ').slice(1);
                             const q = args.join(' ');
-                            const commandName = cmd.slice(settings.prefix.length).split(' ')[0];
+                            const commandName = cmd.slice(currentPrefix.length).split(' ')[0];
 
                             (async () => {
                                 try {
@@ -1028,56 +1029,56 @@ class BotSession {
                                         }
                                         case 'allmenu': 
                                             const allMenuCmd = require('./commands/allmenu');
-                                            await allMenuCmd(this.sock, from, msg, this, commands); 
+                                            await allMenuCmd(this.sock, from, msg, this, commands, botData); 
                                             break;
                                         case 'ownermenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     👑 𝗢𝗪𝗡𝗘𝗥 𝗠𝗘𝗡𝗨 👑\n💎 ═══════════════════ 💎\n\n  ⚡ .public\n  ⚡ .private\n  ⚡ .mode\n  ⚡ .owner\n  ⚡ .setname\n  ⚡ .block\n  ⚡ .unblock\n  ⚡ .bcgc\n  ⚡ .bcall\n  ⚡ .restart\n  ⚡ .shutdown\n  ⚡ .xrestart\n  ⚡ .xshutdown\n  ⚡ .nuke\n  ⚡ .deleteall\n  ⚡ .clear\n  ⚡ .clone\n  ⚡ .backup\n  ⚡ .restore\n  ⚡ .ghostmode / .ghost\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     👑 𝗢𝗪𝗡𝗘𝗥 𝗠𝗘𝗡𝗨 👑\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}public\n  ⚡ ${currentPrefix}private\n  ⚡ ${currentPrefix}mode\n  ⚡ ${currentPrefix}setprefix\n  ⚡ ${currentPrefix}setmenu\n  ⚡ ${currentPrefix}owner\n  ⚡ ${currentPrefix}setname\n  ⚡ ${currentPrefix}block\n  ⚡ ${currentPrefix}unblock\n  ⚡ ${currentPrefix}bcgc\n  ⚡ ${currentPrefix}bcall\n  ⚡ ${currentPrefix}restart\n  ⚡ ${currentPrefix}shutdown\n  ⚡ ${currentPrefix}xrestart\n  ⚡ ${currentPrefix}xshutdown\n  ⚡ ${currentPrefix}nuke\n  ⚡ ${currentPrefix}deleteall\n  ⚡ ${currentPrefix}clear\n  ⚡ ${currentPrefix}clone\n  ⚡ ${currentPrefix}backup\n  ⚡ ${currentPrefix}restore\n  ⚡ ${currentPrefix}ghostmode / ${currentPrefix}ghost\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'groupmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     👥 𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗡𝗨 👥\n💎 ═══════════════════ 💎\n\n  ⚡ .kick\n  ⚡ .add\n  ⚡ .promote\n  ⚡ .demote\n  ⚡ .revoke\n  ⚡ .invite\n  ⚡ .mute\n  ⚡ .unmute\n  ⚡ .tagall\n  ⚡ .hidetag\n  ⚡ .tagadmin\n  ⚡ .grouplink / .gclink\n  ⚡ .groupinfo / .ginfo\n  ⚡ .join\n  ⚡ .leave\n  ⚡ .setdesc\n  ⚡ .setppgc\n  ⚡ .getbio\n  ⚡ .getdp\n  ⚡ .accept\n  ⚡ .poll\n  ⚡ .everyonemsg\n  ⚡ .listonline\n  ⚡ .kickoffline\n  ⚡ .tagme\n  ⚡ .mention\n  ⚡ .snipe\n  ⚡ .editmsg\n  ⚡ .react\n  ⚡ .send\n  ⚡ .forward / .fwd\n  ⚡ .antilink\n  ⚡ .antidelete\n  ⚡ .anticall\n  ⚡ .antistatus\n  ⚡ .antibug\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     👥 𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗡𝗨 👥\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}kick\n  ⚡ ${currentPrefix}add\n  ⚡ ${currentPrefix}promote\n  ⚡ ${currentPrefix}demote\n  ⚡ ${currentPrefix}revoke\n  ⚡ ${currentPrefix}invite\n  ⚡ ${currentPrefix}mute\n  ⚡ ${currentPrefix}unmute\n  ⚡ ${currentPrefix}tagall\n  ⚡ ${currentPrefix}hidetag\n  ⚡ ${currentPrefix}tagadmin\n  ⚡ ${currentPrefix}grouplink / ${currentPrefix}gclink\n  ⚡ ${currentPrefix}groupinfo / ${currentPrefix}ginfo\n  ⚡ ${currentPrefix}join\n  ⚡ ${currentPrefix}leave\n  ⚡ ${currentPrefix}setdesc\n  ⚡ ${currentPrefix}setppgc\n  ⚡ ${currentPrefix}getbio\n  ⚡ ${currentPrefix}getdp\n  ⚡ ${currentPrefix}accept\n  ⚡ ${currentPrefix}poll\n  ⚡ ${currentPrefix}everyonemsg\n  ⚡ ${currentPrefix}listonline\n  ⚡ ${currentPrefix}kickoffline\n  ⚡ ${currentPrefix}tagme\n  ⚡ ${currentPrefix}mention\n  ⚡ ${currentPrefix}snipe\n  ⚡ ${currentPrefix}editmsg\n  ⚡ ${currentPrefix}react\n  ⚡ ${currentPrefix}send\n  ⚡ ${currentPrefix}forward / ${currentPrefix}fwd\n  ⚡ ${currentPrefix}antilink\n  ⚡ ${currentPrefix}antidelete\n  ⚡ ${currentPrefix}anticall\n  ⚡ ${currentPrefix}antistatus\n  ⚡ ${currentPrefix}antibug\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'downloadmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     ⬇️ 𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗 𝗠𝗘𝗡𝗨 ⬇️\n💎 ═══════════════════ 💎\n\n  ⚡ .song\n  ⚡ .video\n  ⚡ .insta / .ig\n  ⚡ .tiktok / .tt\n  ⚡ .facebook / .fb\n  ⚡ .youtube / .yt\n  ⚡ .pinterest / .pin\n  ⚡ .twitter / .x\n  ⚡ .reddit\n  ⚡ .spotify / .spot\n  ⚡ .mediafire / .mf\n  ⚡ .apk\n  ⚡ .gdrive\n  ⚡ .yts / .ytsearch\n  ⚡ .lyrics\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     ⬇️ 𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗 𝗠𝗘𝗡𝗨 ⬇️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}song\n  ⚡ ${currentPrefix}video\n  ⚡ ${currentPrefix}insta / ${currentPrefix}ig\n  ⚡ ${currentPrefix}tiktok / ${currentPrefix}tt\n  ⚡ ${currentPrefix}facebook / ${currentPrefix}fb\n  ⚡ ${currentPrefix}youtube / ${currentPrefix}yt\n  ⚡ ${currentPrefix}pinterest / ${currentPrefix}pin\n  ⚡ ${currentPrefix}twitter / ${currentPrefix}x\n  ⚡ ${currentPrefix}reddit\n  ⚡ ${currentPrefix}spotify / ${currentPrefix}spot\n  ⚡ ${currentPrefix}mediafire / ${currentPrefix}mf\n  ⚡ ${currentPrefix}apk\n  ⚡ ${currentPrefix}gdrive\n  ⚡ ${currentPrefix}yts / ${currentPrefix}ytsearch\n  ⚡ ${currentPrefix}lyrics\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'aimenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🤖 𝗔𝗜 𝗠𝗘𝗡𝗨 🤖\n💎 ═══════════════════ 💎\n\n  ⚡ .ai\n  ⚡ .chatbot\n  ⚡ .gali\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🤖 𝗔𝗜 𝗠𝗘𝗡𝗨 🤖\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}ai\n  ⚡ ${currentPrefix}chatbot\n  ⚡ ${currentPrefix}gali\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'bugmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🐛 𝗕𝗨𝗚 𝗠𝗘𝗡𝗨 🐛\n💎 ═══════════════════ 💎\n\n  ⚡ .crash\n  ⚡ .freeze\n  ⚡ .bug\n  ⚡ .locspam\n  ⚡ .vcardspam\n  ⚡ .buttonspam\n  ⚡ .pollspam\n  ⚡ .contactspam\n  ⚡ .smsbomb\n  ⚡ .callbomb\n  ⚡ .hack\n  ⚡ .spam\n  ⚡ .nuke\n  ⚡ .deleteall\n  ⚡ .xrestart\n  ⚡ .xshutdown\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🐛 𝗕𝗨𝗚 𝗠𝗘𝗡𝗨 🐛\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}crash\n  ⚡ ${currentPrefix}freeze\n  ⚡ ${currentPrefix}bug\n  ⚡ ${currentPrefix}locspam\n  ⚡ ${currentPrefix}vcardspam\n  ⚡ ${currentPrefix}buttonspam\n  ⚡ ${currentPrefix}pollspam\n  ⚡ ${currentPrefix}contactspam\n  ⚡ ${currentPrefix}smsbomb\n  ⚡ ${currentPrefix}callbomb\n  ⚡ ${currentPrefix}hack\n  ⚡ ${currentPrefix}spam\n  ⚡ ${currentPrefix}nuke\n  ⚡ ${currentPrefix}deleteall\n  ⚡ ${currentPrefix}xrestart\n  ⚡ ${currentPrefix}xshutdown\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'toolsmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🛠️ 𝗧𝗢𝗢𝗟𝗦 𝗠𝗘𝗡𝗨 🛠️\n💎 ═══════════════════ 💎\n\n  ⚡ .ping\n  ⚡ .dp\n  ⚡ .vv\n  ⚡ .translate / .trt\n  ⚡ .base64\n  ⚡ .qr\n  ⚡ .shorturl\n  ⚡ .calc / .math\n  ⚡ .weather\n  ⚡ .github / .gh\n  ⚡ .ipinfo\n  ⚡ .tempmail\n  ⚡ .fakeinfo\n  ⚡ .binlookup\n  ⚡ .whois\n  ⚡ .dnslookup\n  ⚡ .portscan\n  ⚡ .screenshot / .ss\n  ⚡ .define / .dictionary\n  ⚡ .google / .gsearch\n  ⚡ .wiki / .wikipedia\n  ⚡ .yts / .ytsearch\n  ⚡ .playstore / .ps\n  ⚡ .npm\n  ⚡ .uptime\n  ⚡ .serverinfo / .si\n  ⚡ .speedtest / .speed\n  ⚡ .device / .dev\n  ⚡ .runtime / .rt\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🛠️ 𝗧𝗢𝗢𝗟𝗦 𝗠𝗘𝗡𝗨 🛠️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}ping\n  ⚡ ${currentPrefix}dp\n  ⚡ ${currentPrefix}vv\n  ⚡ ${currentPrefix}translate / ${currentPrefix}trt\n  ⚡ ${currentPrefix}base64\n  ⚡ ${currentPrefix}qr\n  ⚡ ${currentPrefix}shorturl\n  ⚡ ${currentPrefix}calc / ${currentPrefix}math\n  ⚡ ${currentPrefix}weather\n  ⚡ ${currentPrefix}github / ${currentPrefix}gh\n  ⚡ ${currentPrefix}ipinfo\n  ⚡ ${currentPrefix}tempmail\n  ⚡ ${currentPrefix}fakeinfo\n  ⚡ ${currentPrefix}binlookup\n  ⚡ ${currentPrefix}whois\n  ⚡ ${currentPrefix}dnslookup\n  ⚡ ${currentPrefix}portscan\n  ⚡ ${currentPrefix}screenshot / ${currentPrefix}ss\n  ⚡ ${currentPrefix}define / ${currentPrefix}dictionary\n  ⚡ ${currentPrefix}google / ${currentPrefix}gsearch\n  ⚡ ${currentPrefix}wiki / ${currentPrefix}wikipedia\n  ⚡ ${currentPrefix}yts / ${currentPrefix}ytsearch\n  ⚡ ${currentPrefix}playstore / ${currentPrefix}ps\n  ⚡ ${currentPrefix}npm\n  ⚡ ${currentPrefix}uptime\n  ⚡ ${currentPrefix}serverinfo / ${currentPrefix}si\n  ⚡ ${currentPrefix}speedtest / ${currentPrefix}speed\n  ⚡ ${currentPrefix}device / ${currentPrefix}dev\n  ⚡ ${currentPrefix}runtime / ${currentPrefix}rt\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'funmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎉 𝗙𝗨𝗡 𝗠𝗘𝗡𝗨 🎉\n💎 ═══════════════════ 💎\n\n  ⚡ .joke\n  ⚡ .meme\n  ⚡ .dare\n  ⚡ .truth\n  ⚡ .ascii\n  ⚡ .roast\n  ⚡ .compliment\n  ⚡ .ship\n  ⚡ .emojimix\n  ⚡ .character\n  ⚡ .quote\n  ⚡ .fact\n  ⚡ .trivia\n  ⚡ .coinflip / .cf\n  ⚡ .roll\n  ⚡ .riddle\n  ⚡ .wyr / .wouldyourather\n  ⚡ .report\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🎉 𝗙𝗨𝗡 𝗠𝗘𝗡𝗨 🎉\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}joke\n  ⚡ ${currentPrefix}meme\n  ⚡ ${currentPrefix}dare\n  ⚡ ${currentPrefix}truth\n  ⚡ ${currentPrefix}ascii\n  ⚡ ${currentPrefix}roast\n  ⚡ ${currentPrefix}compliment\n  ⚡ ${currentPrefix}ship\n  ⚡ ${currentPrefix}emojimix\n  ⚡ ${currentPrefix}character\n  ⚡ ${currentPrefix}quote\n  ⚡ ${currentPrefix}fact\n  ⚡ ${currentPrefix}trivia\n  ⚡ ${currentPrefix}coinflip / ${currentPrefix}cf\n  ⚡ ${currentPrefix}roll\n  ⚡ ${currentPrefix}riddle\n  ⚡ ${currentPrefix}wyr / ${currentPrefix}wouldyourather\n  ⚡ ${currentPrefix}report\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
 
                                         case 'animemenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎌 𝗔𝗡𝗜𝗠𝗘 𝗠𝗘𝗡𝗨 🎌\n💎 ═══════════════════ 💎\n\n  ⚡ .anime\n  ⚡ .manga\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🎌 𝗔𝗡𝗜𝗠𝗘 𝗠𝗘𝗡𝗨 🎌\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}anime\n  ⚡ ${currentPrefix}manga\n  ⚡ ${currentPrefix}animeschedule\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'stickermenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🏷️ 𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗠𝗘𝗡𝗨 🏷️\n💎 ═══════════════════ 💎\n\n  ⚡ .sticker / .s\n  ⚡ .toimg / .img\n  ⚡ .tomp3 / .mp3\n  ⚡ .emojimix\n  ⚡ .blur\n  ⚡ .invert\n  ⚡ .crop\n  ⚡ .flip\n  ⚡ .grayscale / .grey\n  ⚡ .removebg / .nobg\n  ⚡ .enlarge / .upscale\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🏷️ 𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗠𝗘𝗡𝗨 🏷️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}sticker / ${currentPrefix}s\n  ⚡ ${currentPrefix}toimg / ${currentPrefix}img\n  ⚡ ${currentPrefix}tomp3 / ${currentPrefix}mp3\n  ⚡ ${currentPrefix}emojimix\n  ⚡ ${currentPrefix}blur\n  ⚡ ${currentPrefix}invert\n  ⚡ ${currentPrefix}crop\n  ⚡ ${currentPrefix}flip\n  ⚡ ${currentPrefix}grayscale / ${currentPrefix}grey\n  ⚡ ${currentPrefix}removebg / ${currentPrefix}nobg\n  ⚡ ${currentPrefix}enlarge / ${currentPrefix}upscale\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'imagemenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🖼️ 𝗜𝗠𝗔𝗚𝗘 𝗠𝗘𝗡𝗨 🖼️\n💎 ═══════════════════ 💎\n\n  ⚡ .blur\n  ⚡ .invert\n  ⚡ .crop\n  ⚡ .flip\n  ⚡ .grayscale / .grey\n  ⚡ .removebg / .nobg\n  ⚡ .enlarge / .upscale\n  ⚡ .toimg / .img\n  ⚡ .ascii\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🖼️ 𝗜𝗠𝗔𝗚𝗘 𝗠𝗘𝗡𝗨 🖼️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}blur\n  ⚡ ${currentPrefix}invert\n  ⚡ ${currentPrefix}crop\n  ⚡ ${currentPrefix}flip\n  ⚡ ${currentPrefix}grayscale / ${currentPrefix}grey\n  ⚡ ${currentPrefix}removebg / ${currentPrefix}nobg\n  ⚡ ${currentPrefix}enlarge / ${currentPrefix}upscale\n  ⚡ ${currentPrefix}toimg / ${currentPrefix}img\n  ⚡ ${currentPrefix}ascii\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
@@ -1162,6 +1163,8 @@ class BotSession {
                                         case 'restart': await commands.restart(this.sock, from, msg, isOwner); break;
                                         case 'shutdown': await commands.shutdown(this.sock, from, msg, isOwner); break;
                                         case 'mode': await commands.mode(this.sock, from, msg, isOwner, this); break;
+                                        case 'setprefix': await commands.setprefix(this.sock, from, msg, q, this, botData, saveBotData); break;
+                                        case 'setmenu': await commands.setmenu(this.sock, from, msg, q, this, botData, saveBotData); break;
                                         case 'deleteall': await commands.deleteall(this.sock, from, msg, isOwner, q); break;
                                         case 'clone': await commands.clone(this.sock, from, msg, isOwner, q); break;
                                         case 'plta': 
@@ -1491,10 +1494,12 @@ function generateMenuText(userName, session) {
 ┃ ✦ Version: ${settings.version}
 ┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}
 ┃ ✦ Mode: ${mode}
-┃ ✦ Prefix: ${settings.prefix}
+┃ ✦ Prefix: ${botData.globalPrefix || settings.prefix}
 ┃ ✦ Uptime: ${uptimeStr}
 ┃ ✦ Status: Active
 ╰━━━━━━━━━━━━━━━━━━━━⬣
+
+*Menu Type:* ${botData.menuType || 'text'}
 
 ➤ .allmenu
 ➤ .ownermenu

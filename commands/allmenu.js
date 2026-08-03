@@ -1,7 +1,9 @@
 const settings = require('../settings');
 const { delay } = require('@whiskeysockets/baileys');
 
-async function allMenu(sock, from, msg, session, commands) {
+async function allMenu(sock, from, msg, session, commands, botData) {
+    const menuType = botData.menuType || 'text';
+    const currentPrefix = botData.globalPrefix || settings.prefix || '.';
     const loadingMessages = [
         "🔍 *System Check Initialized...*",
         "📦 *Installing Dependencies: [||||||||||] 100%*",
@@ -20,7 +22,7 @@ async function allMenu(sock, from, msg, session, commands) {
     allMenuText += `┃ ✦ Total Commands: 350+\n`;
     allMenuText += `┃ ✦ Version: ${settings.version}\n`;
     allMenuText += `┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}\n`;
-    allMenuText += `┃ ✦ Prefix: ${settings.prefix}\n`;
+    allMenuText += `┃ ✦ Prefix: ${currentPrefix}\n`;
     allMenuText += `┃ ✦ Status: Active\n`;
     allMenuText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
 
@@ -46,26 +48,55 @@ async function allMenu(sock, from, msg, session, commands) {
         '🎯 MISC CENTER': ['timer', 'password', 'morse', 'binary', 'hex', 'pastebin', 'news', 'crypto', 'movie', 'anime', 'manga', 'lyrics', 'remind', 'tagme', 'mention', 'snipe', 'editmsg', 'react', 'send', 'forward', 'clear', 'save', 'mycmd']
     };
 
-    // ===== BUILD LIST =====
-    for (const [category, cmds] of Object.entries(categories)) {
-        allMenuText += `╭━━━〔 ${category} 〕━━━⬣\n`;
-        
-        cmds.forEach((cmd) => {
-            allMenuText += `┃ ➤ .${cmd}\n`;
-        });
-        
-        allMenuText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
+    if (menuType === 'slide') {
+        // Slide format using List Message (Modern)
+        const sections = Object.entries(categories).map(([category, cmds]) => ({
+            title: category,
+            rows: cmds.map(cmd => ({
+                title: `${currentPrefix}${cmd}`,
+                rowId: `${currentPrefix}${cmd}`,
+                description: `Run ${cmd} command`
+            }))
+        }));
+
+        const listMessage = {
+            text: allMenuText + `\nClick the button below to see all commands in slide format!`,
+            footer: `© POWERED BY MYSTIC TECH`,
+            title: `*🎌 MYSTIC XMD V4 MENU 🎌*`,
+            buttonText: "SHOW COMMANDS",
+            sections
+        };
+
+        try {
+            await sock.sendMessage(from, listMessage, { quoted: msg });
+        } catch (e) {
+            // Fallback if list fails
+            await sendTextMenu(sock, from, msg, allMenuText, categories, currentPrefix);
+        }
+    } else {
+        // Classic Text Format
+        await sendTextMenu(sock, from, msg, allMenuText, categories, currentPrefix);
     }
+}
 
-    // ===== FOOTER =====
-    allMenuText += `   © POWERED BY MYSTIC TECH`;
+async function sendTextMenu(sock, from, msg, header, categories, prefix) {
+    let menuText = header;
+    for (const [category, cmds] of Object.entries(categories)) {
+        menuText += `╭━━━〔 ${category} 〕━━━⬣\n`;
+        cmds.forEach((cmd) => {
+            menuText += `┃ ➤ ${prefix}${cmd}\n`;
+        });
+        menuText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
+    }
+    menuText += `   © POWERED BY MYSTIC TECH`;
 
-    // ===== SEND =====
     try {
-        await sock.sendMessage(from, { image: { url: settings.startimage }, caption: allMenuText });
+        await sock.sendMessage(from, { 
+            image: { url: settings.startimage }, 
+            caption: menuText 
+        }, { quoted: msg });
     } catch (e) {
-        // Fallback - send as text only
-        await sock.sendMessage(from, { text: allMenuText });
+        await sock.sendMessage(from, { text: menuText }, { quoted: msg });
     }
 }
 
