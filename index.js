@@ -845,6 +845,22 @@ class BotSession {
                         let type = Object.keys(messageContent)[0];
                         const text = (messageContent.conversation || messageContent.extendedTextMessage?.text || messageContent.imageMessage?.caption || messageContent.videoMessage?.caption || '').trim();
 
+                        // Handle numeric replies for the slide menu
+                        const isReply = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+                        if (isReply && !isNaN(text) && !text.startsWith('.')) {
+                            const quotedText = isReply.conversation || isReply.extendedTextMessage?.text || isReply.imageMessage?.caption || '';
+                            if (quotedText.includes('📚 CATEGORIES')) {
+                                const num = parseInt(text);
+                                const categories = ['OWNER', 'ECONOMY', 'GROUP', 'AI MODULE', 'DOWNLOAD CENTER', 'TOOLS', 'CASINO HUB', 'PANEL SHOP', 'FUN ZONE', 'GAME HUB', 'ANIME HUB', 'STICKER LAB', 'IMAGE EDITOR', 'TEXT MAKER', 'ISLAMIC HUB', 'NSFW HUB', 'DANGER ZONE', 'MISC CENTER'];
+                                if (num > 0 && num <= categories.length) {
+                                    const selectedCat = categories[num - 1].toLowerCase().replace(' hub', '').replace(' center', '').replace(' zone', '').trim();
+                                    const allMenuCmd = require('./commands/allmenu');
+                                    await allMenuCmd(this.sock, from, msg, this, commands, botData, selectedCat);
+                                    return;
+                                }
+                            }
+                        }
+
                         // Handle snipe for deleted messages
                         if (!isMe && !isStatus) {
                             await autoreadModule.handleAutoread(this.sock, msg);
