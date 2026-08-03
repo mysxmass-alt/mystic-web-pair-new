@@ -7,11 +7,12 @@ module.exports = async function(sock, chatId, msg, q) {
         await sock.sendMessage(chatId, { react: { text: '🔞', key: msg.key } });
         await sock.sendMessage(chatId, { text: `🔍 Searching for "${q}"...` }, { quoted: msg });
 
-        const apiUrl = `https://prexzyapis.com/nsfw/xvideos-search?query=${encodeURIComponent(q)}`;
+        const apiUrl = `https://prexzyapis.com/nsfw/xvideos-search?q=${encodeURIComponent(q)}`;
         const response = await axios.get(apiUrl);
+        const data = response.data;
 
-        if (response.data && response.data.status && response.data.videos && response.data.videos.length > 0) {
-            const results = response.data.videos.slice(0, 5); // Get top 5 results
+        if (data && data.status && data.result && data.result.videos && data.result.videos.length > 0) {
+            const results = data.result.videos.slice(0, 5); // Get top 5 results
             let resultText = `🔞 *SEARCH RESULTS* 🔞\n\n`;
 
             results.forEach((video, index) => {

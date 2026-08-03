@@ -1,7 +1,7 @@
 const settings = require('../settings');
 const { delay } = require('@whiskeysockets/baileys');
 
-async function allMenu(sock, from, msg, session, commands, botData) {
+async function allMenu(sock, from, msg, session, commands, botData, categoryFilter) {
     const menuType = botData.menuType || 'text';
     const currentPrefix = botData.globalPrefix || settings.prefix || '.';
     const loadingMessages = [
@@ -48,33 +48,38 @@ async function allMenu(sock, from, msg, session, commands, botData) {
         '🎯 MISC CENTER': ['timer', 'password', 'morse', 'binary', 'hex', 'pastebin', 'news', 'crypto', 'movie', 'anime', 'manga', 'lyrics', 'remind', 'tagme', 'mention', 'snipe', 'editmsg', 'react', 'send', 'forward', 'clear', 'save', 'mycmd']
     };
 
-    if (menuType === 'slide') {
-        // Slide format using List Message (Modern)
-        const sections = Object.entries(categories).map(([category, cmds]) => ({
-            title: category,
-            rows: cmds.map(cmd => ({
-                title: `${currentPrefix}${cmd}`,
-                rowId: `${currentPrefix}${cmd}`,
-                description: `Run ${cmd} command`
-            }))
-        }));
+    if (categoryFilter) {
+        const filteredKey = Object.keys(categories).find(k => k.toLowerCase().includes(categoryFilter.toLowerCase()));
+        if (filteredKey) {
+            return await sendTextMenu(sock, from, msg, allMenuText, { [filteredKey]: categories[filteredKey] }, currentPrefix);
+        }
+    }
 
-        const listMessage = {
-            text: allMenuText + `\nClick the button below to see all commands in slide format!`,
-            footer: `© POWERED BY MYSTIC TECH`,
-            title: `*🎌 MYSTIC XMD V4 MENU 🎌*`,
-            buttonText: "SHOW COMMANDS",
-            sections
-        };
+    if (menuType === 'slide') {
+        // "Slide" format using a compatible Numbered Text List
+        // This works on ALL versions of WhatsApp including Desktop and iOS.
+        
+        let slideText = allMenuText;
+        slideText += `╭━━━〔 📚 CATEGORIES 〕━━━⬣\n`;
+        
+        const catList = Object.keys(categories);
+        catList.forEach((cat, i) => {
+            slideText += `┃ ${i + 1}. ${cat}\n`;
+        });
+        
+        slideText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
+        slideText += `💡 *Tip:* Reply with the *Number* or type *${currentPrefix}menu <name>* to view commands in that category.\n\n`;
+        slideText += `Example: *${currentPrefix}menu anime*`;
 
         try {
-            await sock.sendMessage(from, listMessage, { quoted: msg });
+            await sock.sendMessage(from, { 
+                image: { url: settings.startimage }, 
+                caption: slideText 
+            }, { quoted: msg });
         } catch (e) {
-            // Fallback if list fails
-            await sendTextMenu(sock, from, msg, allMenuText, categories, currentPrefix);
+            await sock.sendMessage(from, { text: slideText }, { quoted: msg });
         }
     } else {
-        // Classic Text Format
         await sendTextMenu(sock, from, msg, allMenuText, categories, currentPrefix);
     }
 }

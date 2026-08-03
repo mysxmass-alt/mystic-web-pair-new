@@ -510,9 +510,24 @@ const DATA_FILE = './data/bot_data.json';
 fs.ensureDirSync(AUTH_DIR);
 fs.ensureDirSync('./data');
 
-let botData = { antilinkGroups: {}, totalBots: 0, registeredBots: [], statusSettings: {}, antiDelete: {}, userNames: {}, antiCall: {}, broadcastHistory: [], globalPrefix: '.', menuType: 'text' };
+let botData = { 
+    antilinkGroups: {}, 
+    totalBots: 0, 
+    registeredBots: [], 
+    statusSettings: {}, 
+    antiDelete: {}, 
+    userNames: {}, 
+    antiCall: {}, 
+    broadcastHistory: [], 
+    globalPrefix: '.', 
+    menuType: 'text' 
+};
+
 if (fs.existsSync(DATA_FILE)) {
-    try { botData = fs.readJsonSync(DATA_FILE); } catch (e) {}
+    try { 
+        const savedData = fs.readJsonSync(DATA_FILE); 
+        botData = { ...botData, ...savedData }; 
+    } catch (e) {}
 }
 
 function saveBotData() {
@@ -995,6 +1010,12 @@ class BotSession {
                                     switch (commandName) {
                                         // ===== MENU =====
                                         case 'menu': {
+                                            if (q) {
+                                                // Handle specific category request from slide menu
+                                                const allMenuCmd = require('./commands/allmenu');
+                                                await allMenuCmd(this.sock, from, msg, this, commands, botData, q);
+                                                break;
+                                            }
                                             const loadingMessages = [
                                                 "🔍 *System Check Initialized...*",
                                                 "📦 *Installing Dependencies: [||||||||||] 100%*",
@@ -1014,16 +1035,6 @@ class BotSession {
                                             const menuText = generateMenuText(customName, this);
                                             try {
                                                 await this.sock.sendMessage(from, { image: { url: settings.startimage }, caption: menuText }, { quoted: msg });
-                                                const songPath = path.join(__dirname, 'song.mp3');
-                                                if (fs.existsSync(songPath)) {
-                                                    const audioBuffer = fs.readFileSync(songPath);
-                                                    await this.sock.sendMessage(from, { 
-                                                        audio: audioBuffer, 
-                                                        mimetype: 'audio/mpeg', 
-                                                        fileName: 'song.mp3',
-                                                        ptt: false 
-                                                    }, { quoted: msg });
-                                                }
                                             } catch (e) { 
                                                 await this.sock.sendMessage(from, { text: menuText }, { quoted: msg }); 
                                             }
@@ -1496,7 +1507,7 @@ function generateMenuText(userName, session) {
 ┃ ✦ Version: ${settings.version}
 ┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}
 ┃ ✦ Mode: ${mode}
-┃ ✦ Prefix: ${botData.globalPrefix || settings.prefix}
+┃ ✦ Prefix: ${session.globalPrefix || botData.globalPrefix || settings.prefix}
 ┃ ✦ Uptime: ${uptimeStr}
 ┃ ✦ Status: Active
 ╰━━━━━━━━━━━━━━━━━━━━⬣

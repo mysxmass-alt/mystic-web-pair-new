@@ -7,10 +7,11 @@ module.exports = async function(sock, chatId, msg, q) {
         await sock.sendMessage(chatId, { react: { text: '🎌', key: msg.key } });
         await sock.sendMessage(chatId, { text: '🔍 Searching anime...' }, { quoted: msg });
         
-        const response = await axios.get(`https://prexzyapis.com/anime/animesearch?query=${encodeURIComponent(q)}`, { timeout: 10000 });
+        const response = await axios.get(`https://prexzyapis.com/anime/animesearch?q=${encodeURIComponent(q)}`, { timeout: 10000 });
+        const data = response.data;
         
-        if (response.data && response.data.status && response.data.data && response.data.data.results && response.data.data.results.length > 0) {
-            const anime = response.data.data.results[0];
+        if (data && data.status && data.result && data.result.length > 0) {
+            const anime = data.result[0];
             const text = `*🎌 ${anime.title}*\n\n` +
                 `📌 Type: ${anime.type}\n` +
                 `📊 Status: ${anime.status}\n` +
