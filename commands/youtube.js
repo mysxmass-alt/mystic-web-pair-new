@@ -15,31 +15,31 @@ module.exports = async function(sock, chatId, msg, q) {
             videoUrl = video.url;
         }
 
-        // Use Siputzx API for downloading
-        const apiUrl = `https://api.siputzx.my.id/api/d/youtube?url=${encodeURIComponent(videoUrl)}`;
+        // Using Prexzy API for downloading
+        const apiUrl = `https://prexzyapis.com/download/ytmp4?url=${encodeURIComponent(videoUrl)}`;
         const response = await axios.get(apiUrl);
         const data = response.data;
 
-        if (data && data.status && data.data) {
-            const videoData = data.data;
-            const caption = `*\u25B6\uFE0F ${videoData.title}*\n\n` +
-                `\u23F1\uFE0F Duration: ${videoData.duration || 'N/A'}\n` +
+        if (data && data.status && data.download_url) {
+            const videoInfo = data.info || {};
+            const caption = `*\u25B6\uFE0F ${videoInfo.title || 'YouTube Video'}*\n\n` +
+                `\u23F1\uFE0F Duration: ${videoInfo.duration_string || 'N/A'}\n` +
                 `\u1F517 Link: ${videoUrl}\n\n` +
-                `> © POWERED BY SHADOW MD BOT`;
+                `> © POWERED BY MYSTIC XMD`;
 
             // Send Video
             await sock.sendMessage(chatId, { 
-                video: { url: videoData.dl }, 
+                video: { url: data.download_url }, 
                 caption,
                 mimetype: 'video/mp4'
             }, { quoted: msg });
             
             await sock.sendMessage(chatId, { react: { text: '✅', key: msg.key } });
         } else {
-            throw new Error('Failed to fetch download link.');
+            throw new Error('Failed to fetch download link from Prexzy API.');
         }
     } catch (e) {
-        console.error('YouTube Error:', e);
+        console.error('YouTube Error:', e.message);
         await sock.sendMessage(chatId, { text: '\u274C Error: ' + e.message }, { quoted: msg });
         await sock.sendMessage(chatId, { react: { text: '❌', key: msg.key } });
     }

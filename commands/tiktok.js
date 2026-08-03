@@ -6,20 +6,20 @@ async function tiktokCommand(sock, from, msg, q) {
     try {
         await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } });
         
-        // Using TikWM API as it's generally reliable
-        const res = await axios.get(`https://tikwm.com/api/?url=${encodeURIComponent(q)}`);
+        // Using Prexzy API
+        const apiUrl = `https://prexzyapis.com/download/tiktok?url=${encodeURIComponent(q)}`;
+        const res = await axios.get(apiUrl);
         
-        if (res.data && res.data.data) {
+        if (res.data && res.data.status && res.data.data) {
             const videoData = res.data.data;
-            const videoUrl = videoData.play; // This is the direct MP4 URL
-            const musicUrl = videoData.music;
-            const author = videoData.author.nickname;
+            const videoUrl = videoData.play; // Direct MP4 URL
+            const author = videoData.author?.nickname || "Unknown";
             const title = videoData.title || "TikTok Video";
 
             const caption = `*\u1F3A5 TikTok Downloader*\n\n` +
                 `📝 *Title:* ${title}\n` +
                 `👤 *Author:* ${author}\n\n` +
-                `> © POWERED BY SHADOW MD BOT`;
+                `> © POWERED BY MYSTIC XMD`;
 
             // Send Video
             await sock.sendMessage(from, { 
@@ -30,10 +30,10 @@ async function tiktokCommand(sock, from, msg, q) {
             
             await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
         } else {
-            throw new Error('Failed to fetch TikTok video.');
+            throw new Error('Failed to fetch TikTok video from Prexzy API.');
         }
     } catch (e) {
-        console.error('TikTok Error:', e);
+        console.error('TikTok Error:', e.message);
         await sock.sendMessage(from, { text: "❌ Error downloading TikTok: " + e.message }, { quoted: msg });
         await sock.sendMessage(from, { react: { text: '❌', key: msg.key } });
     }

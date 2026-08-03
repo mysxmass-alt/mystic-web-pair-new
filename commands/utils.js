@@ -6,8 +6,7 @@ const utils = {
     // 1. News Command
     news: async (sock, from, msg) => {
         try {
-            const res = await axios.get('https://newsapi.org/v2/top-headlines?country=us&apiKey=YOUR_API_KEY'); // Placeholder
-            // Using a free fallback if no key
+            // Using a free fallback
             const fallback = await axios.get('https://api.siputzx.my.id/api/tools/news');
             if (fallback.data.status) {
                 let text = `*\u{1F4F0} LATEST NEWS* \n\n`;
@@ -47,13 +46,16 @@ const utils = {
     weather: async (sock, from, msg, q) => {
         if (!q) return sock.sendMessage(from, { text: "❌ Provide a city." });
         try {
-            const res = await axios.get(`https://api.siputzx.my.id/api/tools/weather?city=${encodeURIComponent(q)}`);
-            if (res.data.status) {
+            // Updated to use Prexzy API
+            const res = await axios.get(`https://prexzyapis.com/search/cuaca?kota=${encodeURIComponent(q)}`);
+            if (res.data.status && res.data.data) {
                 const w = res.data.data;
-                const text = `*\u{26C5} WEATHER: ${q.toUpperCase()}*\n\n` +
-                    `*Temp:* ${w.temp}°C\n` +
-                    `*Condition:* ${w.condition}\n` +
-                    `*Humidity:* ${w.humidity}%`;
+                const text = `*\u{26C5} WEATHER: ${w.location.toUpperCase()}*\n\n` +
+                    `*Condition:* ${w.weather}\n` +
+                    `*Temp:* ${w.currentTemp}\n` +
+                    `*Humidity:* ${w.humidity}\n` +
+                    `*Wind:* ${w.windSpeed}\n\n` +
+                    `> © POWERED BY MYSTIC XMD`;
                 await sock.sendMessage(from, { text }, { quoted: msg });
             }
         } catch (e) { await sock.sendMessage(from, { text: "❌ City not found." }); }
@@ -63,14 +65,19 @@ const utils = {
     ip: async (sock, from, msg, q) => {
         if (!q) return sock.sendMessage(from, { text: "❌ Provide an IP." });
         try {
-            const res = await axios.get(`http://ip-api.com/json/${q}`);
-            const d = res.data;
-            const text = `*\u{1F4E1} IP INFO: ${q}*\n\n` +
-                `*Country:* ${d.country}\n` +
-                `*City:* ${d.city}\n` +
-                `*ISP:* ${d.isp}\n` +
-                `*Lat/Lon:* ${d.lat}, ${d.lon}`;
-            await sock.sendMessage(from, { text }, { quoted: msg });
+            // Updated to use Prexzy API
+            const res = await axios.get(`https://prexzyapis.com/tools/geoip?ip=${q}`);
+            if (res.data.status && res.data.data) {
+                const d = res.data.data;
+                const loc = d.location;
+                const text = `*\u{1F4E1} IP INFO: ${q}*\n\n` +
+                    `*Country:* ${loc.country || 'N/A'}\n` +
+                    `*City:* ${loc.city || 'N/A'}\n` +
+                    `*Security:* ${d.security.threat_level}\n` +
+                    `*VPN:* ${d.security.vpn ? 'Yes' : 'No'}\n\n` +
+                    `> © POWERED BY MYSTIC XMD`;
+                await sock.sendMessage(from, { text }, { quoted: msg });
+            }
         } catch (e) { await sock.sendMessage(from, { text: "❌ IP Error" }); }
     },
 

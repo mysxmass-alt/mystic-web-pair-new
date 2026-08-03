@@ -616,7 +616,7 @@ class BotSession {
                 const artUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=Anime&ratio=1:1`;
                 
                 // We still want a sweet reply along with the image
-                const chatApiUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent("You are a sweet Japanese lady. Your beloved 'mystic-chan' asked for a picture of: " + imgPrompt + ". Tell them lovingly that you've prepared it just for them.")}`;
+                const chatApiUrl = `https://prexzyapis.com/ai/aichat?prompt=${encodeURIComponent("You are a sweet Japanese lady. Your beloved 'mystic-chan' asked for a picture of: " + imgPrompt + ". Tell them lovingly that you've prepared it just for them.")}`;
                 let caption = "Here is the picture you asked for, mystic-chan! 🌸";
                 try {
                     const chatRes = await axios.get(chatApiUrl);
@@ -634,7 +634,7 @@ class BotSession {
             });
             context += `User: ${userMessage}\nYou:`;
 
-            const apiUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(context)}`;
+            const apiUrl = `https://prexzyapis.com/ai/aichat?prompt=${encodeURIComponent(context)}`;
             const response = await axios.get(apiUrl);
             
             if (response.data && response.data.status) {
