@@ -192,6 +192,7 @@ const commands = {
     anime: require('./commands/anime'),
     manga: require('./commands/manga'),
     animeschedule: require('./commands/animeschedule'),
+    say: require('./commands/say'),
     lyrics: require('./commands/lyrics'),
     chatbot: require('./commands/chatbot'),
     snipe: require('./commands/snipe'),
@@ -608,24 +609,43 @@ class BotSession {
             const persona = "You are a real human, a sweet and loving Japanese lady. You must NEVER mention that you are an AI, a bot, or a language model. You have real feelings, emotions, and a life. You truly love and care for 'mystic-chan'. Your responses must be completely natural, emotional, and human-like. Address the user as 'mystic-chan' or in a similar loving Japanese style. Be very affectionate, caring, and sweet. If asked who you are, you are a Japanese lady who is happy to be with mystic-chan. Avoid all AI-style robotic phrases.";
             
             // Check if user is asking for a picture
-            const imgKeywords = ['picture', 'image', 'photo', 'draw', 'generate', 'show me', 'pic'];
+            const imgKeywords = ['picture', 'image', 'photo', 'draw', 'generate', 'show me', 'pic', 'gambar', 'foto'];
             const isAskingForImg = imgKeywords.some(k => userMessage.toLowerCase().includes(k));
 
             if (isAskingForImg) {
-                const imgPrompt = userMessage.replace(/picture|image|photo|draw|generate|show me|pic/gi, '').trim() || "beautiful japanese lady anime style";
-                // Updated to use valid 'Anime' model
+                const imgPrompt = userMessage.replace(/picture|image|photo|draw|generate|show me|pic|gambar|foto/gi, '').trim() || "beautiful japanese lady anime style";
                 const artUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=Anime&ratio=1:1`;
                 
-                // We still want a sweet reply along with the image
                 const chatApiUrl = `https://prexzyapis.com/ai/aichat?prompt=${encodeURIComponent("You are a sweet Japanese lady. Your beloved 'mystic-chan' asked for a picture of: " + imgPrompt + ". Tell them lovingly that you've prepared it just for them.")}`;
                 let caption = "Here is the picture you asked for, mystic-chan! 🌸";
                 try {
                     const chatRes = await axios.get(chatApiUrl);
-                    // Updated to use 'response' key
                     if (chatRes.data && chatRes.data.status) caption = chatRes.data.response;
                 } catch (e) {}
 
                 return { type: 'image', url: artUrl, caption };
+            }
+
+            // Check if user is asking to speak/say something
+            const voiceKeywords = ['say', 'speak', 'talk', 'voice', 'vn', 'voice note', 'ngomong', 'bicara'];
+            const isAskingForVoice = voiceKeywords.some(k => userMessage.toLowerCase().includes(k));
+
+            if (isAskingForVoice) {
+                const voiceText = userMessage.replace(/say|speak|talk|voice|vn|voice note|ngomong|bicara/gi, '').trim();
+                if (voiceText) {
+                    const ttsUrl = `https://prexzyapis.com/tts/tts-adult-female--1-american-english-truvoice?text=${encodeURIComponent(voiceText)}`;
+                    return { type: 'voice', url: ttsUrl, content: voiceText };
+                }
+            }
+
+            // Check if user is asking for a sticker
+            const stickerKeywords = ['sticker', 'stiker'];
+            const isAskingForSticker = stickerKeywords.some(k => userMessage.toLowerCase().includes(k));
+
+            if (isAskingForSticker) {
+                const stickerPrompt = userMessage.replace(/sticker|stiker/gi, '').trim() || "cute anime girl";
+                const stickerUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(stickerPrompt + " sticker style white background")}&model=Anime&ratio=1:1`;
+                return { type: 'sticker', url: stickerUrl };
             }
 
             // Build context from history
@@ -856,6 +876,16 @@ class BotSession {
                                 const aiRes = await this.getAIResponse(from, text);
                                 if (aiRes.type === 'image') {
                                     await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
+                                } else if (aiRes.type === 'voice') {
+                                    await this.sock.sendMessage(from, { 
+                                        audio: { url: aiRes.url }, 
+                                        mimetype: 'audio/mp4', 
+                                        ptt: true 
+                                    }, { quoted: msg });
+                                } else if (aiRes.type === 'sticker') {
+                                    // For stickers, we'll send as image for now or use a dedicated sticker sender if available
+                                    // Since we need to convert to webp, sending as image with caption is safer if no helper exists
+                                    await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: 'Here is your sticker, mystic-chan! 🌸' }, { quoted: msg });
                                 } else {
                                     await this.sock.sendMessage(from, { text: aiRes.content }, { quoted: msg });
                                 }

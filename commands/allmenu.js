@@ -36,7 +36,7 @@ async function allMenu(sock, from, msg, session, commands) {
         '🚀 PANEL SHOP': ['buypanel'],
         '🎉 FUN ZONE': ['joke', 'meme', 'dare', 'truth', 'ascii', 'roast', 'compliment', 'ship', 'emojimix', 'character', 'quote', 'fact', 'trivia', 'coinflip', 'roll', 'riddle', 'wouldyourather', 'report'],
         '🎮 GAME HUB': ['trivia', 'coinflip', 'roll', 'dare', 'truth', 'riddle', 'wouldyourather', 'tictactoe'],
-        '🎌 ANIME HUB': ['anime', 'manga', 'animeschedule', 'waifu', 'neko', 'megumin', 'shinobu', 'naruto', 'onepiece', 'sasuke', 'itachi', 'nezuko', 'boruto', 'mikasa', 'akiyama', 'asuna', 'erza', 'cry', 'kill', 'hug', 'pat', 'lick', 'kiss', 'bite', 'yeet', 'bully', 'bonk', 'wink', 'poke', 'nom', 'slap', 'smile', 'wave', 'awoo', 'blush', 'smug', 'glomp', 'happy', 'dance', 'cringe', 'cuddle', 'highfive', 'handhold'],
+        '🎌 ANIME HUB': ['anime', 'manga', 'animeschedule', 'say', 'waifu', 'neko', 'megumin', 'shinobu', 'naruto', 'onepiece', 'sasuke', 'itachi', 'nezuko', 'boruto', 'mikasa', 'akiyama', 'asuna', 'erza', 'cry', 'kill', 'hug', 'pat', 'lick', 'kiss', 'bite', 'yeet', 'bully', 'bonk', 'wink', 'poke', 'nom', 'slap', 'smile', 'wave', 'awoo', 'blush', 'smug', 'glomp', 'happy', 'dance', 'cringe', 'cuddle', 'highfive', 'handhold'],
         '🏷️ STICKER LAB': ['sticker', 'toimg', 'tomp3', 'emojimix', 'blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge'],
         '🖼️ IMAGE EDITOR': ['blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge', 'toimg', 'ascii'],
         '✏️ TEXT MAKER': ['base64', 'binary', 'hex', 'morse', 'qr', 'glitchtext', 'writetext', 'advancedglow', 'typographytext', 'pixelglitch', 'neonglitch', 'flagtext', 'flag3dtext', 'deletingtext', 'blackpinkstyle'],
