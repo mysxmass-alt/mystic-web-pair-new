@@ -1085,18 +1085,18 @@ class BotSession {
                                             break;
                                         }
                                         case 'textmakermenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     ✏️ 𝗧𝗘𝗫𝗧 𝗠𝗔𝗞𝗘𝗥 𝗠𝗘𝗡𝗨 ✏️\n💎 ═══════════════════ 💎\n\n  ⚡ .base64\n  ⚡ .binary / .bin\n  ⚡ .hex\n  ⚡ .morse\n  ⚡ .qr\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     ✏️ 𝗧𝗘𝗫𝗧 𝗠𝗔𝗞𝗘𝗥 𝗠𝗘𝗡𝗨 ✏️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}base64\n  ⚡ ${currentPrefix}binary / ${currentPrefix}bin\n  ⚡ ${currentPrefix}hex\n  ⚡ ${currentPrefix}morse\n  ⚡ ${currentPrefix}qr\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         // logomenu removed as all commands were not implemented
                                         case 'islamicmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🕌 𝗜𝗦𝗟𝗔𝗠𝗜𝗖 𝗠𝗘𝗡𝗨 🕌\n💎 ═══════════════════ 💎\n\n  ⚡ .quran\n  ⚡ .hadith\n  ⚡ .prayer / .salah\n  ⚡ .qibla\n  ⚡ .asmaulhusna / .asma\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🕌 𝗜𝗦𝗟𝗔𝗠𝗜𝗖 𝗠𝗘𝗡𝗨 🕌\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}quran\n  ⚡ ${currentPrefix}hadith\n  ⚡ ${currentPrefix}prayer / ${currentPrefix}salah\n  ⚡ ${currentPrefix}qibla\n  ⚡ ${currentPrefix}asmaulhusna / ${currentPrefix}asma\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
                                         case 'miscmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎯 𝗠𝗜𝗦𝗖 𝗠𝗘𝗡𝗨 🎯\n💎 ═══════════════════ 💎\n\n  ⚡ .timer\n  ⚡ .password / .pass\n  ⚡ .morse\n  ⚡ .binary / .bin\n  ⚡ .hex\n  ⚡ .pastebin / .paste\n  ⚡ .news\n  ⚡ .crypto / .coin\n  ⚡ .movie / .imdb\n  ⚡ .anime\n  ⚡ .manga\n  ⚡ .lyrics\n  ⚡ .remind / .reminder\n  ⚡ .tagme\n  ⚡ .mention\n  ⚡ .snipe\n  ⚡ .editmsg\n  ⚡ .react\n  ⚡ .send\n  ⚡ .forward / .fwd\n  ⚡ .clear\n  ⚡ .save\n  ⚡ .backup\n  ⚡ .restore\n  ⚡ .mycmd / .mycommands\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
+                                            const text = `\n💎 ═══════════════════ 💎\n     🎯 𝗠𝗜𝗦𝗖 𝗠𝗘𝗡𝗨 🎯\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}timer\n  ⚡ ${currentPrefix}password / ${currentPrefix}pass\n  ⚡ ${currentPrefix}morse\n  ⚡ ${currentPrefix}binary / ${currentPrefix}bin\n  ⚡ ${currentPrefix}hex\n  ⚡ ${currentPrefix}pastebin / ${currentPrefix}paste\n  ⚡ ${currentPrefix}news\n  ⚡ ${currentPrefix}crypto / ${currentPrefix}coin\n  ⚡ ${currentPrefix}movie / ${currentPrefix}imdb\n  ⚡ ${currentPrefix}anime\n  ⚡ ${currentPrefix}manga\n  ⚡ ${currentPrefix}lyrics\n  ⚡ ${currentPrefix}remind / ${currentPrefix}reminder\n  ⚡ ${currentPrefix}tagme\n  ⚡ ${currentPrefix}mention\n  ⚡ ${currentPrefix}snipe\n  ⚡ ${currentPrefix}editmsg\n  ⚡ ${currentPrefix}react\n  ⚡ ${currentPrefix}send\n  ⚡ ${currentPrefix}forward / ${currentPrefix}fwd\n  ⚡ ${currentPrefix}clear\n  ⚡ ${currentPrefix}save\n  ⚡ ${currentPrefix}backup\n  ⚡ ${currentPrefix}restore\n  ⚡ ${currentPrefix}mycmd / ${currentPrefix}mycommands\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
                                             await this.sock.sendMessage(from, { text }, { quoted: msg });
                                             break;
                                         }
