@@ -6,8 +6,8 @@ module.exports = async function(sock, chatId, msg, q) {
     try {
         await sock.sendMessage(chatId, { react: { text: '🗣️', key: msg.key } });
         
-        // Using Prexzy API for Female TTS
-        const apiUrl = `https://prexzyapis.com/tts/tts-adult-female--1-american-english-truvoice?text=${encodeURIComponent(q)}`;
+        // Using Prexzy API for TTS (Mike voice)
+        const apiUrl = `https://prexzyapis.com/tts/tts-mike?text=${encodeURIComponent(q)}`;
         
         await sock.sendMessage(chatId, { 
             audio: { url: apiUrl },

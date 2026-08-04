@@ -7,36 +7,41 @@ module.exports = async function(sock, chatId, msg, q) {
         await sock.sendMessage(chatId, { react: { text: '🔞', key: msg.key } });
         await sock.sendMessage(chatId, { text: `🔍 Searching for "${q}"...` }, { quoted: msg });
 
-        const apiUrl = `https://prexzyapis.com/nsfw/xvideos-search?q=${encodeURIComponent(q)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
+        // Step 1: Search for videos
+        const searchUrl = `https://prexzyapis.com/nsfw/xvideos-search?query=${encodeURIComponent(q)}`;
+        const searchResponse = await axios.get(searchUrl);
+        const searchData = searchResponse.data;
 
-        if (data && data.status && data.result && data.result.videos && data.result.videos.length > 0) {
-            const results = data.result.videos.slice(0, 5); // Get top 5 results
-            let resultText = `🔞 *SEARCH RESULTS* 🔞\n\n`;
+        if (searchData && searchData.status && searchData.videos && searchData.videos.length > 0) {
+            const firstVideo = searchData.videos[0];
+            const videoUrl = firstVideo.url;
 
-            results.forEach((video, index) => {
-                resultText += `${index + 1}. *${video.title}*\n`;
-                resultText += `   ⏱️ Duration: ${video.duration}\n`;
-                resultText += `   🔗 URL: ${video.url}\n\n`;
-            });
+            await sock.sendMessage(chatId, { text: `✅ Found: *${firstVideo.title}*\n⏱️ Duration: ${firstVideo.duration}\n\n📥 *Downloading video for you...*` }, { quoted: msg });
 
-            resultText += `_Showing top 5 results for "${q}"_`;
-            
-            // Try to send the first video's thumbnail if available
-            if (results[0].thumb) {
+            // Step 2: Get download link
+            const dlUrl = `https://prexzyapis.com/nsfw/xvideos-dl?url=${encodeURIComponent(videoUrl)}`;
+            const dlResponse = await axios.get(dlUrl);
+            const dlData = dlResponse.data;
+
+            if (dlData && dlData.status && dlData.best && dlData.best.url) {
+                const downloadLink = dlData.best.url;
+
+                // Step 3: Send video to WhatsApp
                 await sock.sendMessage(chatId, { 
-                    image: { url: results[0].thumb }, 
-                    caption: resultText 
+                    video: { url: downloadLink }, 
+                    caption: `🔞 *${firstVideo.title}*\n\n> © Powered by Prexzy APIs`,
+                    mimetype: 'video/mp4'
                 }, { quoted: msg });
+
+                await sock.sendMessage(chatId, { react: { text: '✅', key: msg.key } });
             } else {
-                await sock.sendMessage(chatId, { text: resultText }, { quoted: msg });
+                await sock.sendMessage(chatId, { text: `❌ Failed to fetch download link for: ${firstVideo.title}. You can try the link manually: ${videoUrl}` }, { quoted: msg });
             }
         } else {
             await sock.sendMessage(chatId, { text: '❌ No results found for your search.' }, { quoted: msg });
         }
     } catch (e) {
-        console.error("Search Error:", e.message);
-        await sock.sendMessage(chatId, { text: '⚠️ Error fetching results. Please try again later.' }, { quoted: msg });
+        console.error("XVideos Error:", e.message);
+        await sock.sendMessage(chatId, { text: '⚠️ Error: ' + e.message }, { quoted: msg });
     }
 };

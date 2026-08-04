@@ -631,9 +631,9 @@ class BotSession {
 
             if (isAskingForImg) {
                 const imgPrompt = userMessage.replace(/picture|image|photo|draw|generate|show me|pic|gambar|foto/gi, '').trim() || "beautiful japanese lady anime style";
-                const artUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=Anime&ratio=1:1`;
+                const artUrl = `https://prexzyapis.com/ai/txt2img?prompt=${encodeURIComponent(imgPrompt)}&model=Anime&style=Anime&aspect_ratio=1:1`;
                 
-                const chatApiUrl = `https://prexzyapis.com/ai/aichat?prompt=${encodeURIComponent("You are a sweet Japanese lady. Your beloved 'mystic-chan' asked for a picture of: " + imgPrompt + ". Tell them lovingly that you've prepared it just for them.")}`;
+                const chatApiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent("You are a sweet Japanese lady. Your beloved 'mystic-chan' asked for a picture of: " + imgPrompt + ". Tell them lovingly that you've prepared it just for them.")}&session_id=${encodeURIComponent(userJid)}`;
                 let caption = "Here is the picture you asked for, mystic-chan! 🌸";
                 try {
                     const chatRes = await axios.get(chatApiUrl);
@@ -672,7 +672,7 @@ class BotSession {
             });
             context += `User: ${userMessage}\nYou:`;
 
-            const apiUrl = `https://prexzyapis.com/ai/aichat?prompt=${encodeURIComponent(context)}`;
+            const apiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent(context)}&session_id=${encodeURIComponent(userJid)}`;
             const response = await axios.get(apiUrl);
             
             if (response.data && response.data.status) {
