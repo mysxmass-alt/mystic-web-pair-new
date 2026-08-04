@@ -31,7 +31,7 @@ async function allMenu(sock, from, msg, session, commands, botData, categoryFilt
         '👑 OWNER': ['public', 'private', 'mode', 'setprefix', 'setmenu', 'owner', 'setname', 'block', 'unblock', 'bcgc', 'bcall', 'restart', 'shutdown', 'xrestart', 'xshutdown', 'nuke', 'clear', 'clone', 'ghostmode', 'deleteall', 'autostatus', 'addbal'],
         '💰 ECONOMY': ['bal', 'daily', 'work', 'beg', 'deposit', 'withdraw', 'shop', 'buy', 'inventory', 'leaderboard'],
         '👥 GROUP': ['kick', 'add', 'promote', 'demote', 'mute', 'unmute', 'tagall', 'hidetag', 'grouplink', 'groupinfo', 'join', 'leave', 'hijack', 'setdesc', 'setppgc', 'getbio', 'getdp', 'accept', 'poll', 'everyonemsg', 'listonline', 'tagme', 'mention', 'kickoffline', 'snipe', 'editmsg', 'react', 'send', 'forward', 'save', 'antilink', 'antidelete', 'anticall', 'antistatus', 'antibug'],
-        '🤖 AI MODULE': ['ai', 'chatbot', 'gali'],
+        '🤖 AI MODULE': ['ai', 'chatbot', 'mistral', 'borli', 'gali'],
         '⬇️ DOWNLOAD CENTER': ['song', 'video', 'insta', 'tiktok', 'facebook', 'youtube', 'pinterest', 'twitter', 'reddit', 'spotify', 'mf', 'apk', 'gdrive', 'yts', 'lyrics'],
         '🛠️ TOOLS': ['ping', 'dp', 'vv', 'translate', 'base64', 'qr', 'shorturl', 'calc', 'weather', 'github', 'ipinfo', 'tempmail', 'fakeinfo', 'binlookup', 'whois', 'dnslookup', 'portscan', 'screenshot', 'define', 'google', 'wiki', 'yts', 'playstore', 'npm', 'sticker', 'toimg', 'tomp3', 'tts', 'blur', 'invert', 'crop', 'flip', 'grayscale', 'removebg', 'enlarge', 'uptime', 'serverinfo', 'speedtest', 'device', 'runtime'],
         '🎰 CASINO HUB': ['bal', 'daily', 'beg', 'dice', 'cf', 'slots', 'tictactoe', 'leaderboard', 'gamemenu'],

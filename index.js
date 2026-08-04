@@ -85,6 +85,8 @@ const commands = {
 
     // AI
     ai: require('./commands/ai'),
+    mistral: require('./commands/mistral'),
+    borli: require('./commands/borli'),
 
     // Fun
     joke: require('./commands/joke'),
@@ -619,6 +621,43 @@ class BotSession {
         io.emit('total-active', Object.values(sessions).filter(s => s.isConnected).length);
     }
 
+    updateHistory(userJid, userMessage, aiMsg) {
+        if (!this.chatHistory[userJid]) this.chatHistory[userJid] = [];
+        this.chatHistory[userJid].push({ role: 'user', content: userMessage });
+        this.chatHistory[userJid].push({ role: 'assistant', content: aiMsg });
+        if (this.chatHistory[userJid].length > 10) {
+            this.chatHistory[userJid] = this.chatHistory[userJid].slice(-10);
+        }
+    }
+
+    async getMistralResponse(userJid, userMessage) {
+        try {
+            const apiUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(userMessage)}&chatId=${encodeURIComponent(userJid)}`;
+            const response = await axios.get(apiUrl);
+            if (response.data && response.data.status) {
+                return { type: 'text', content: response.data.response };
+            }
+            throw new Error("Mistral API Error");
+        } catch (error) {
+            return { type: 'text', content: "❌ Mistral Error: " + error.message };
+        }
+    }
+
+    async getBorliResponse(userJid, userMessage) {
+        try {
+            const apiUrl = `https://prexzyapis.com/ai/borli?action=chat&prompt=${encodeURIComponent(userMessage)}&chat_uuid=${encodeURIComponent(userJid)}`;
+            const response = await axios.get(apiUrl);
+            if (response.data && response.data.status) {
+                let res = response.data.response;
+                if (response.data.inner_thoughts) res += `\n\n*Inner Thoughts:* _${response.data.inner_thoughts}_`;
+                return { type: 'text', content: res };
+            }
+            throw new Error("Borli API Error");
+        } catch (error) {
+            return { type: 'text', content: "❌ Borli Error: " + error.message };
+        }
+    }
+
     async getAIResponse(userJid, userMessage) {
         try {
             if (!this.chatHistory[userJid]) this.chatHistory[userJid] = [];
@@ -699,28 +738,34 @@ class BotSession {
             context += `User: ${userMessage}\nYou:`;
 
             const apiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent(context)}&session_id=${encodeURIComponent(userJid)}`;
-            const response = await axios.get(apiUrl);
+            let response;
+            try {
+                response = await axios.get(apiUrl);
+            } catch (e) {
+                console.log("Gemini failed, trying Mistral...");
+            }
             
-            if (response.data && response.data.status) {
-                // Updated to use 'response' key
+            if (response && response.data && response.data.status) {
                 const aiMsg = response.data.response;
-                
-                // Update history
-                this.chatHistory[userJid].push({ role: 'user', content: userMessage });
-                this.chatHistory[userJid].push({ role: 'assistant', content: aiMsg });
-                
-                // Keep history manageable (last 10 messages)
-                if (this.chatHistory[userJid].length > 10) {
-                    this.chatHistory[userJid] = this.chatHistory[userJid].slice(-10);
-                }
-                
+                this.updateHistory(userJid, userMessage, aiMsg);
                 return { type: 'text', content: aiMsg };
             } else {
-                // Fallback to previous reliable API if new one fails
-                const fallbackUrl = `https://api.siputzx.my.id/api/ai/chatgpt?prompt=${encodeURIComponent(persona)}&text=${encodeURIComponent(userMessage)}`;
-                const fallbackRes = await axios.get(fallbackUrl);
-                if (fallbackRes.data && fallbackRes.data.status) {
-                    return { type: 'text', content: fallbackRes.data.data };
+                // Fallback to Mistral
+                const mistralUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(context)}&chatId=${encodeURIComponent(userJid)}`;
+                const mistralRes = await axios.get(mistralUrl);
+                if (mistralRes.data && mistralRes.data.status) {
+                    const aiMsg = mistralRes.data.response;
+                    this.updateHistory(userJid, userMessage, aiMsg);
+                    return { type: 'text', content: aiMsg };
+                }
+                
+                // Final fallback to Llama/DeepQuery
+                const deepUrl = `https://prexzyapis.com/ai/deepquery?prompt=${encodeURIComponent(context)}`;
+                const deepRes = await axios.get(deepUrl);
+                if (deepRes.data && deepRes.data.status) {
+                    const aiMsg = deepRes.data.response;
+                    this.updateHistory(userJid, userMessage, aiMsg);
+                    return { type: 'text', content: aiMsg };
                 }
                 throw new Error("Invalid API response from all sources");
             }
