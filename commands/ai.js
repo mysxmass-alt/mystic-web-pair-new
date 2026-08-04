@@ -16,6 +16,14 @@ async function aiCommand(sock, from, msg, isAdmin, session, args) {
             const aiRes = await session.getAIResponse(from, query);
             if (aiRes.type === 'image') {
                 await sock.sendMessage(from, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
+            } else if (aiRes.type === 'voice') {
+                await sock.sendMessage(from, { 
+                    audio: { url: aiRes.url }, 
+                    mimetype: 'audio/mp4', 
+                    ptt: true 
+                }, { quoted: msg });
+            } else if (aiRes.type === 'sticker') {
+                await sock.sendMessage(from, { image: { url: aiRes.url }, caption: 'Here is your sticker, mystic-chan! 🌸' }, { quoted: msg });
             } else {
                 await sock.sendMessage(from, { text: aiRes.content }, { quoted: msg });
             }
