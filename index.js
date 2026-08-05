@@ -819,7 +819,7 @@ class BotSession {
                 },
                 printQRInTerminal: false,
                 logger: P({ level: 'fatal' }),
-                browser: Browsers.ubuntu('Chrome'),
+                browser: ["Ubuntu", "Chrome", "20.0.04"],
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
                 markOnlineOnConnect: true,
@@ -855,10 +855,18 @@ class BotSession {
             });
 
             if (pairingNumber && !state.creds.registered) {
+                // Clean the pairing number: remove all non-numeric characters
+                const cleanedNumber = pairingNumber.replace(/[^0-9]/g, '');
+                if (!cleanedNumber) {
+                    this.sendLog("❌ Invalid pairing number provided.", "error");
+                    return;
+                }
+                
                 if (!this.sock.authState.creds.registered) {
-                    await delay(3000);
+                    this.sendLog(`\u{1F4F1} Requesting pairing code for: ${cleanedNumber}`, 'info');
+                    await delay(5000); // Increased delay for stability
                     try {
-                        let code = await this.sock.requestPairingCode(pairingNumber);
+                        let code = await this.sock.requestPairingCode(cleanedNumber);
                         code = code?.match(/.{1,4}/g)?.join("-") || code;
                         this.sendLog(`\u{1F511} Pairing Code: ${code}`, 'success');
 
