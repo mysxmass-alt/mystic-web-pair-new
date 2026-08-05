@@ -1,8 +1,8 @@
 module.exports = {
     startimage: 'https://files.catbox.moe/qtj502.png',
     ownerNumber: process.env.OWNER_NUMBER || '2349036021563',
-    botName: '👁️ MYSTIC XMD',
-    ownerName: 'Sir Mystic',
+    botName: 'MYSTIC XMD',
+    ownerName: 'MYSTIC',
     whatsappChannel: 'https://whatsapp.com/channel/0029VbCd887Bqbr3YdYfnu1v',
     tgOwnerId: process.env.OWNER_TELEGRAM_ID || 'sirmysisundead',
     premiumUsers: [],

@@ -2,6 +2,8 @@ async function aiCommand(sock, from, msg, isAdmin, session, args) {
     if (!isAdmin) return await sock.sendMessage(from, { text: "❌ Only owner can use this command." }, { quoted: msg });
     
     const action = args[0]?.toLowerCase();
+    const pushName = msg.pushName || 'User';
+
     if (action === 'on') {
         session.aiEnabled = true;
         await sock.sendMessage(from, { text: "✅ AI Auto-Reply Enabled!" }, { quoted: msg });
@@ -13,7 +15,7 @@ async function aiCommand(sock, from, msg, isAdmin, session, args) {
         const query = args.join(' ');
         try {
             await sock.sendMessage(from, { react: { text: '🤖', key: msg.key } });
-            const aiRes = await session.getAIResponse(from, query);
+            const aiRes = await session.getAIResponse(from, query, pushName);
             if (aiRes.type === 'image') {
                 await sock.sendMessage(from, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
             } else if (aiRes.type === 'voice') {
@@ -23,7 +25,7 @@ async function aiCommand(sock, from, msg, isAdmin, session, args) {
                     ptt: true 
                 }, { quoted: msg });
             } else if (aiRes.type === 'sticker') {
-                await sock.sendMessage(from, { image: { url: aiRes.url }, caption: 'Here is your sticker, mystic-chan! 🌸' }, { quoted: msg });
+                await sock.sendMessage(from, { image: { url: aiRes.url }, caption: `Here is your sticker, ${pushName}! 🌸` }, { quoted: msg });
             } else {
                 await sock.sendMessage(from, { text: aiRes.content }, { quoted: msg });
             }

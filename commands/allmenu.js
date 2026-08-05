@@ -21,7 +21,7 @@ async function allMenu(sock, from, msg, session, commands, botData, categoryFilt
     let allMenuText = `╭━━━〔 MYSTIC XMD V4 〕━━━⬣\n`;
     allMenuText += `┃ ✦ Total Commands: 350+\n`;
     allMenuText += `┃ ✦ Version: ${settings.version}\n`;
-    allMenuText += `┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}\n`;
+    allMenuText += `┃ ✦ Owner: ${settings.ownerName || 'MYSTIC XMD'}\n`;
     allMenuText += `┃ ✦ Prefix: ${currentPrefix}\n`;
     allMenuText += `┃ ✦ Status: Active\n`;
     allMenuText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
@@ -93,7 +93,7 @@ async function sendTextMenu(sock, from, msg, header, categories, prefix) {
         });
         menuText += `╰━━━━━━━━━━━━━━━━━━━━⬣\n\n`;
     }
-    menuText += `   © POWERED BY MYSTIC TECH`;
+    menuText += `   © POWERED BY MYSTIC XMD`;
 
     try {
         await sock.sendMessage(from, { 

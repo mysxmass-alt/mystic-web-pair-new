@@ -1,4 +1,4 @@
-const settings = require('../settings'); // اگر settings نہیں تو اس لائن کو ہٹا دو
+const settings = require('../settings');
 
 module.exports = async function(sock, chatId, msg, args) {
     // ── Helper: Branded send (newsletter forward) ──
@@ -10,7 +10,7 @@ module.exports = async function(sock, chatId, msg, args) {
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: "120363207208218980@newsletter",
-                    newsletterName: "𝐒𝐘𝐄𝐃 𝐓𝐄𝐂𝐇",
+                    newsletterName: "MYSTIC XMD",
                     serverMessageId: 200
                 }
             }
@@ -24,11 +24,9 @@ module.exports = async function(sock, chatId, msg, args) {
         // ── Heavy Box Response ──
         const response = `
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  💀  *𝙎𝙔𝙀𝘿 𝙈𝘿  —  𝙍𝙀𝙋𝙊𝙎𝙄𝙏𝙊𝙍𝙔*  💀  ┃
+┃  💀  *𝙈𝙔𝙎𝙏𝙄𝘾 𝙓𝙈𝘿  —  𝙍𝙀𝙋𝙊𝙎𝙄𝙏𝙊𝙍𝙔*  💀  ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  🔗 *Official Website*                   ┃
-┃  ➤ https://mystic_xmd-md-production.up.railway.app/ ┃
-┃  ➤ https://mystic_xmd-md-production.up.railway.app/ ┃
 ┃  ➤ https://mystic_xmd-md-production.up.railway.app/ ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃  📱 *Pairing Guide*                      ┃
@@ -39,9 +37,9 @@ module.exports = async function(sock, chatId, msg, args) {
 ┃  ✨ .pair 923XXXXXXXXX                   ┃
 ┃  ⚡ Scan • Pair • Enjoy        ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃  👑 *Version*   : ${settings?.version || '3.0'}  ┃
+┃  👑 *Version*   : ${settings?.version || '4.0'}  ┃
 ┃  🔐 *Security*  : Premium Encrypted      ┃
-┃  ☠️ *Powered by* : MYSTIC XMD MD TEAM          ┃
+┃  ☠️ *Powered by* : MYSTIC XMD TEAM          ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
         `;
 
@@ -49,6 +47,6 @@ module.exports = async function(sock, chatId, msg, args) {
 
     } catch (error) {
         console.error("❌ Repo command error:", error);
-        await sendMsg("⚠️ کچھ غلط ہو گیا، براہِ کرم دوبارہ کوشش کریں۔");
+        await sendMsg("⚠️ Error: " + error.message);
     }
 };

@@ -1,5 +1,6 @@
 module.exports = async function(sock, chatId, msg, session, args) {
     const text = args.join(' ');
+    const pushName = msg.pushName || 'User';
     
     if (!text) {
         return await sock.sendMessage(chatId, { 
@@ -14,15 +15,15 @@ module.exports = async function(sock, chatId, msg, session, args) {
 
     if (text.toLowerCase() === 'on') {
         session.aiEnabled = true;
-        await sock.sendMessage(chatId, { text: '🌸 *Chatbot AI ON!* I will now auto-reply to your messages lovingy, mystic-chan!' }, { quoted: msg });
+        await sock.sendMessage(chatId, { text: `🌸 *Chatbot AI ON!* I will now auto-reply to your messages lovingly, ${pushName}!` }, { quoted: msg });
     } else if (text.toLowerCase() === 'off') {
         session.aiEnabled = false;
-        await sock.sendMessage(chatId, { text: '💔 *Chatbot AI OFF!* I\'ll miss you, mystic-chan...' }, { quoted: msg });
+        await sock.sendMessage(chatId, { text: `💔 *Chatbot AI OFF!* I'll miss you, ${pushName}...` }, { quoted: msg });
     } else {
         // Direct chat
         try {
             await sock.sendMessage(chatId, { react: { text: '💖', key: msg.key } });
-            const aiRes = await session.getAIResponse(chatId, text);
+            const aiRes = await session.getAIResponse(chatId, text, pushName);
             if (aiRes.type === 'image') {
                 await sock.sendMessage(chatId, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
             } else if (aiRes.type === 'voice') {
@@ -32,12 +33,12 @@ module.exports = async function(sock, chatId, msg, session, args) {
                     ptt: true 
                 }, { quoted: msg });
             } else if (aiRes.type === 'sticker') {
-                await sock.sendMessage(chatId, { image: { url: aiRes.url }, caption: 'Here is your sticker, mystic-chan! 🌸' }, { quoted: msg });
+                await sock.sendMessage(chatId, { image: { url: aiRes.url }, caption: `Here is your sticker, ${pushName}! 🌸` }, { quoted: msg });
             } else {
                 await sock.sendMessage(chatId, { text: aiRes.content }, { quoted: msg });
             }
         } catch (e) {
-            await sock.sendMessage(chatId, { text: '⚠️ Gomen, mystic-chan! I had a little trouble responding.' }, { quoted: msg });
+            await sock.sendMessage(chatId, { text: `⚠️ Gomen, ${pushName}! I had a little trouble responding.` }, { quoted: msg });
         }
     }
 };

@@ -29,7 +29,7 @@ module.exports = async function(sock, chatId, msg, q) {
                 // Step 3: Send video to WhatsApp
                 await sock.sendMessage(chatId, { 
                     video: { url: downloadLink }, 
-                    caption: `🔞 *${firstVideo.title}*\n\n> © Powered by Prexzy APIs`,
+                    caption: `🔞 *${firstVideo.title}*\n\n> © POWERED BY MYSTIC XMD`,
                     mimetype: 'video/mp4'
                 }, { quoted: msg });
 

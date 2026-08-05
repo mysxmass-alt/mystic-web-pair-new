@@ -30,7 +30,7 @@ module.exports = async function(sock, chatId, msg, q) {
                      `🏛️ *Bank:* ${bank}\n` +
                      `🌍 *Country:* ${country}\n\n` +
                      `⚠️ For educational purposes only!\n\n` +
-                     `_Powered by Shadow MD Bot_`;
+                     `_Powered by Mystic XMD_`;
 
         await sock.sendMessage(chatId, { text }, { quoted: msg });
     } catch (err) {

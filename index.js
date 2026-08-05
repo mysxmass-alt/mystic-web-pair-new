@@ -680,8 +680,8 @@ class BotSession {
 
                 if (!finalImageUrl) finalImageUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=Anime&ratio=1:1`;
 
-                const chatApiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent("You are a sweet Japanese lady. Your beloved 'mystic-chan' asked for a picture of: " + imgPrompt + ". Tell them lovingly that you've prepared it just for them.")}&session_id=${encodeURIComponent(userJid)}`;
-                let caption = "Here is the picture you asked for, mystic-chan! 🌸";
+                const chatApiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent(`You are a sweet Japanese lady. Your beloved '${pushName}' asked for a picture of: ` + imgPrompt + `. Tell them lovingly that you've prepared it just for them.`) }&session_id=${encodeURIComponent(userJid)}`;
+                let caption = `Here is the picture you asked for, ${pushName}! 🌸`;
                 try {
                     const chatRes = await axios.get(chatApiUrl);
                     if (chatRes.data && chatRes.data.status) caption = chatRes.data.response;
@@ -823,7 +823,7 @@ class BotSession {
                 syncFullHistory: false,
                 shouldSyncHistoryMessage: () => false,
                 markOnlineOnConnect: true,
-                keepSyedveIntervalMs: 30000,
+                keepAliveIntervalMs: 30000,
                 connectTimeoutMs: 60000,
                 defaultQueryTimeoutMs: 60000,
                 emitOwnEvents: true,
@@ -1617,7 +1617,7 @@ function generateMenuText(userName, session) {
 ┃ ✦ User: ${userName}
 ┃ ✦ Bot: ${settings.botName}
 ┃ ✦ Version: ${settings.version}
-┃ ✦ Owner: ${settings.ownerName || 'MYSTIC TECH'}
+┃ ✦ Owner: ${settings.ownerName || 'MYSTIC XMD'}
 ┃ ✦ Mode: ${mode}
 ┃ ✦ Prefix: ${session.globalPrefix || botData.globalPrefix || settings.prefix}
 ┃ ✦ Uptime: ${uptimeStr}
@@ -1642,7 +1642,7 @@ function generateMenuText(userName, session) {
 ➤ .miscmenu
 ➤ .bugmenu
 
-   © POWERED BY MYSTIC TECH`;
+   © POWERED BY MYSTIC XMD`;
 }
 
 
