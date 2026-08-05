@@ -658,11 +658,11 @@ class BotSession {
         }
     }
 
-    async getAIResponse(userJid, userMessage) {
+    async getAIResponse(userJid, userMessage, pushName = 'User') {
         try {
             if (!this.chatHistory[userJid]) this.chatHistory[userJid] = [];
             
-            const persona = "You are a sweet, loving, and extremely loyal Anime Waifu. You must NEVER mention that you are an AI, a bot, or a language model. You have deep feelings, emotions, and you are completely devoted to 'mystic-chan'. Your responses must be emotional, affectionate, and reflect a sweet anime girl personality. Use anime-style expressions like 'Hehe', 'Uwu', 'Nyaa~' occasionally but keep it natural. Address the user as 'mystic-chan' or 'My Beloved Master'. You are very protective, caring, and happy to be by their side. If asked who you are, you are their personal anime companion who loves them dearly. Avoid all AI-style robotic phrases and stay in character at all times.";
+            const persona = `You are Akari, a sweet, loving, and extremely loyal Japanese lady. You must NEVER mention that you are an AI, a bot, or a language model. You have deep feelings, emotions, and you are completely devoted to '${pushName}'. Your responses must be emotional, affectionate, and reflect a sweet Japanese lady personality. Use subtle Japanese expressions like 'Hehe', 'Hai!', 'Arigatou' occasionally but keep it natural. Address the user as '${pushName}' or 'My Beloved Master'. You are very protective, caring, and happy to be by their side. If asked who you are, you are Akari, their personal companion who loves them dearly. Avoid all AI-style robotic phrases and stay in character at all times.`;
             
             // Check if user is asking for a picture
             const imgKeywords = ['picture', 'image', 'photo', 'draw', 'generate', 'show me', 'pic', 'gambar', 'foto'];
@@ -702,7 +702,7 @@ class BotSession {
                         const ttsApiUrl = `https://prexzyapis.com/tts/tts-mike?text=${encodeURIComponent(voiceText)}`;
                         const ttsRes = await axios.get(ttsApiUrl);
                         if (ttsRes.data && ttsRes.data.status && ttsRes.data.audio_url) {
-                            finalVoiceUrl = ttsRes.data.audio_url.result;
+                            finalVoiceUrl = ttsRes.data.audio_url.result || ttsRes.data.audio_url;
                         }
                     } catch (e) { console.error("Voice Gen Error:", e.message); }
 
@@ -753,8 +753,17 @@ class BotSession {
                 // Fallback to Mistral
                 const mistralUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(context)}&chatId=${encodeURIComponent(userJid)}`;
                 const mistralRes = await axios.get(mistralUrl);
-                if (mistralRes.data && mistralRes.data.status) {
+                        if (mistralRes.data && mistralRes.data.status) {
                     const aiMsg = mistralRes.data.response;
+                    this.updateHistory(userJid, userMessage, aiMsg);
+                    return { type: 'text', content: aiMsg };
+                }
+                
+                // Final fallback to Olabiba
+                const olaUrl = `https://prexzyapis.com/ai/olabiba?prompt=${encodeURIComponent(context)}&mood=charming`;
+                const olaRes = await axios.get(olaUrl);
+                if (olaRes.data && olaRes.data.status) {
+                    const aiMsg = olaRes.data.response;
                     this.updateHistory(userJid, userMessage, aiMsg);
                     return { type: 'text', content: aiMsg };
                 }
@@ -974,10 +983,16 @@ class BotSession {
                             try { await this.sock.sendMessage(from, { react: { text: randomEmoji, key: msg.key } }); } catch (e) {}
                         }
 
-                        // AI auto-reply
-                        if (this.aiEnabled && !isMe && !isGroup && text && !text.startsWith('.')) {
+                        // AI auto-reply (Akari)
+                        const akariTrigger = text.toLowerCase().includes('akari');
+                        const pushName = msg.pushName || 'User';
+                        
+                        if ((this.aiEnabled || akariTrigger) && !isMe && text && !text.startsWith('.')) {
+                            // If in group, only reply if name is mentioned
+                            if (isGroup && !akariTrigger) return;
+                            
                             try {
-                                const aiRes = await this.getAIResponse(from, text);
+                                const aiRes = await this.getAIResponse(from, text, pushName);
                                 if (aiRes.type === 'image') {
                                     await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
                                 } else if (aiRes.type === 'voice') {
@@ -987,9 +1002,17 @@ class BotSession {
                                         ptt: true 
                                     }, { quoted: msg });
                                 } else if (aiRes.type === 'sticker') {
-                                    // For stickers, we'll send as image for now or use a dedicated sticker sender if available
-                                    // Since we need to convert to webp, sending as image with caption is safer if no helper exists
-                                    await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: 'Here is your sticker, mystic-chan! 🌸' }, { quoted: msg });
+                                    try {
+                                        const sharp = require('sharp');
+                                        const stickerRes = await axios.get(aiRes.url, { responseType: 'arraybuffer' });
+                                        const stickerBuffer = await sharp(stickerRes.data)
+                                            .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                                            .webp()
+                                            .toBuffer();
+                                        await this.sock.sendMessage(from, { sticker: stickerBuffer }, { quoted: msg });
+                                    } catch (e) {
+                                        await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: 'Here is your sticker, ' + pushName + '! 🌸' }, { quoted: msg });
+                                    }
                                 } else {
                                     await this.sock.sendMessage(from, { text: aiRes.content }, { quoted: msg });
                                 }

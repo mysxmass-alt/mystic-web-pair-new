@@ -11,9 +11,10 @@ module.exports = async function(sock, chatId, msg, q) {
         const response = await axios.get(apiUrl);
         const data = response.data;
 
-        if (data && data.status && data.audio_url && data.audio_url.result) {
+        if (data && data.status && data.audio_url) {
+            const audioUrl = data.audio_url.result || data.audio_url;
             await sock.sendMessage(chatId, { 
-                audio: { url: data.audio_url.result },
+                audio: { url: audioUrl },
                 mimetype: 'audio/mp4',
                 ptt: true
             }, { quoted: msg });
