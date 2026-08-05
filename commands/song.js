@@ -27,7 +27,28 @@ async function tryRequest(getter, attempts = 3) {
     throw lastError;
 }
 
-// EliteProTech API - Primary
+// Prexzy YouTube MP3 Downloader - Primary
+async function getPrexzyYTMP3(youtubeUrl) {
+    const apiUrl = `https://prexzyapis.com/download/ytmp3?url=${encodeURIComponent(youtubeUrl)}`;
+    const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
+    
+    if (res?.data?.status && res?.data?.formats && res?.data?.formats.length > 0) {
+        // Get the highest quality audio format (highest bitrate)
+        const bestFormat = res.data.formats.reduce((prev, current) => 
+            ((prev.abr || 0) > (current.abr || 0)) ? prev : current
+        );
+        
+        if (bestFormat.download_url) {
+            return {
+                download: bestFormat.download_url,
+                title: res.data.title || 'YouTube Audio'
+            };
+        }
+    }
+    throw new Error('Prexzy YT-MP3 returned no valid download');
+}
+
+// EliteProTech API - Secondary
 async function getEliteProTechDownloadByUrl(youtubeUrl) {
     const apiUrl = `https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(youtubeUrl)}&format=mp3`;
     const res = await tryRequest(() => axios.get(apiUrl, AXIOS_DEFAULTS));
@@ -107,6 +128,7 @@ async function songCommand(sock, chatId, message) {
         let finalTitle = video.title;
         
         const apiMethods = [
+            { name: 'Prexzy YT-MP3', method: () => getPrexzyYTMP3(video.url) },
             { name: 'EliteProTech', method: () => getEliteProTechDownloadByUrl(video.url) },
             { name: 'Yupra', method: () => getYupraDownloadByUrl(video.url) },
             { name: 'Okatsu', method: () => getOkatsuDownloadByUrl(video.url) },
@@ -114,11 +136,6 @@ async function songCommand(sock, chatId, message) {
                 const res = await axios.get(`https://api.alyachan.pro/api/ytmp3?url=${encodeURIComponent(video.url)}&apikey=G7I6X7`, AXIOS_DEFAULTS);
                 if (res.data.status && res.data.data.url) return { download: res.data.data.url, title: res.data.data.title };
                 throw new Error('Alya failed');
-            }},
-            { name: 'Vreden', method: async () => {
-                const res = await axios.get(`https://api.vreden.my.id/api/ytmp3?url=${encodeURIComponent(video.url)}`, AXIOS_DEFAULTS);
-                if (res.data.status && res.data.result.download.url) return { download: res.data.result.download.url, title: res.data.result.metadata.title };
-                throw new Error('Vreden failed');
             }}
         ];
         
@@ -142,10 +159,11 @@ async function songCommand(sock, chatId, message) {
                 
                 if (audioBuffer && audioBuffer.length > 0) {
                     downloadSuccess = true;
+                    console.log(`✅ Successfully downloaded using ${apiMethod.name}`);
                     break;
                 }
             } catch (err) {
-                console.log(`${apiMethod.name} failed:`, err.message);
+                console.log(`❌ ${apiMethod.name} failed:`, err.message);
             }
         }
         
@@ -162,15 +180,19 @@ async function songCommand(sock, chatId, message) {
 
         let finalBuffer = audioBuffer;
         if (fileExtension !== 'mp3') {
+            console.log(`Converting from ${fileExtension} to mp3...`);
             finalBuffer = await toAudio(audioBuffer, fileExtension);
         }
 
+        // Send the audio with proper metadata
         await sock.sendMessage(chatId, {
             audio: finalBuffer,
             mimetype: 'audio/mpeg',
             fileName: `${finalTitle.replace(/[^\w\s-]/g, '')}.mp3`,
             ptt: false
         }, { quoted: message });
+
+        console.log(`✅ Successfully sent audio: ${finalTitle}`);
 
     } catch (err) {
         console.error('Song command error:', err);

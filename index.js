@@ -737,7 +737,20 @@ class BotSession {
             });
             context += `User: ${userMessage}\nYou:`;
 
-            // Primary: Mistral (Better for roleplay)
+            // Primary: New Prexzy Chatbot API
+            const chatbotUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(userMessage)}`;
+            try {
+                const chatbotRes = await axios.get(chatbotUrl);
+                if (chatbotRes.data && chatbotRes.data.status && chatbotRes.data.response) {
+                    const aiMsg = chatbotRes.data.response;
+                    this.updateHistory(userJid, userMessage, aiMsg);
+                    return { type: 'text', content: aiMsg };
+                }
+            } catch (e) {
+                console.log("Chatbot API failed, trying Mistral...");
+            }
+
+            // Secondary: Mistral (Better for roleplay)
             const mistralUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(context)}&chatId=${encodeURIComponent(userJid)}`;
             try {
                 const mistralRes = await axios.get(mistralUrl);
@@ -750,7 +763,7 @@ class BotSession {
                 console.log("Mistral failed, trying Gemini...");
             }
 
-            // Secondary: Gemini
+            // Tertiary: Gemini
             const apiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent(context)}&session_id=${encodeURIComponent(userJid)}`;
             try {
                 const response = await axios.get(apiUrl);
@@ -760,16 +773,20 @@ class BotSession {
                     return { type: 'text', content: aiMsg };
                 }
             } catch (e) {
-                console.log("Gemini failed, trying DeepQuery...");
+                console.log("Gemini failed, trying Olabiba...");
             }
                 
-                // Final fallback to Olabiba
+                // Fallback to Olabiba
                 const olaUrl = `https://prexzyapis.com/ai/olabiba?prompt=${encodeURIComponent(context)}&mood=charming`;
-                const olaRes = await axios.get(olaUrl);
-                if (olaRes.data && olaRes.data.status) {
-                    const aiMsg = olaRes.data.response;
-                    this.updateHistory(userJid, userMessage, aiMsg);
-                    return { type: 'text', content: aiMsg };
+                try {
+                    const olaRes = await axios.get(olaUrl);
+                    if (olaRes.data && olaRes.data.status) {
+                        const aiMsg = olaRes.data.response;
+                        this.updateHistory(userJid, userMessage, aiMsg);
+                        return { type: 'text', content: aiMsg };
+                    }
+                } catch (e) {
+                    console.log("Olabiba failed, trying DeepQuery...");
                 }
                 
                 // Final fallback to Llama/DeepQuery
