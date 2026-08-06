@@ -737,20 +737,7 @@ class BotSession {
             });
             context += `User: ${userMessage}\nYou:`;
 
-            // Primary: New Prexzy Chatbot API
-            const chatbotUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(userMessage)}`;
-            try {
-                const chatbotRes = await axios.get(chatbotUrl);
-                if (chatbotRes.data && chatbotRes.data.status && chatbotRes.data.response) {
-                    const aiMsg = chatbotRes.data.response;
-                    this.updateHistory(userJid, userMessage, aiMsg);
-                    return { type: 'text', content: aiMsg };
-                }
-            } catch (e) {
-                console.log("Chatbot API failed, trying Mistral...");
-            }
-
-            // Secondary: Mistral (Better for roleplay)
+            // Primary: Mistral (Best for persona and roleplay)
             const mistralUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(context)}&chatId=${encodeURIComponent(userJid)}`;
             try {
                 const mistralRes = await axios.get(mistralUrl);
@@ -760,7 +747,20 @@ class BotSession {
                     return { type: 'text', content: aiMsg };
                 }
             } catch (e) {
-                console.log("Mistral failed, trying Gemini...");
+                console.log("Mistral failed, trying Chatbot API...");
+            }
+
+            // Secondary: Chatbot API
+            const chatbotUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(userMessage)}`;
+            try {
+                const chatbotRes = await axios.get(chatbotUrl);
+                if (chatbotRes.data && chatbotRes.data.status && chatbotRes.data.response) {
+                    const aiMsg = chatbotRes.data.response;
+                    this.updateHistory(userJid, userMessage, aiMsg);
+                    return { type: 'text', content: aiMsg };
+                }
+            } catch (e) {
+                console.log("Chatbot API failed, trying Gemini...");
             }
 
             // Tertiary: Gemini

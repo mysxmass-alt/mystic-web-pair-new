@@ -20,38 +20,22 @@ async function animemakerCommand(sock, from, msg, command) {
         let imageUrl = null;
 
         if (waifuPicsCategories.includes(command)) {
-            // Use Jikan as primary for 'waifu' as requested
+            // Use Prexzy anhmoe for 'waifu' as requested (Jikan is unstable)
             if (command === 'waifu') {
+                imageUrl = "https://prexzyapis.com/random/anhmoe";
+            } else {
+                // Fallback to nekos.best (since waifu.pics is down)
                 try {
-                    const page = Math.floor(Math.random() * 5) + 1;
-                    const response = await axios.get(`https://api.jikan.moe/v4/top/characters?page=${page}`, { timeout: 5000 });
-                    if (response.data && response.data.data && response.data.data.length > 0) {
-                        const randomChar = response.data.data[Math.floor(Math.random() * response.data.data.length)];
-                        imageUrl = randomChar.images?.jpg?.image_url;
-                        const caption = `🌸 *WAIFU: ${randomChar.name}*\n\n${randomChar.about?.substring(0, 150) || ''}...`;
-                        
-                        if (imageUrl) {
-                            await sock.sendMessage(from, { image: { url: imageUrl }, caption }, { quoted: msg });
-                            await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
-                            return;
-                        }
+                    const response = await axios.get(`https://nekos.best/api/v2/${command}`, { 
+                        timeout: 5000,
+                        headers: { 'User-Agent': 'Mystic-XMD/1.0' }
+                    });
+                    if (response.data && response.data.results && response.data.results[0]) {
+                        imageUrl = response.data.results[0].url;
                     }
                 } catch (err) {
-                    console.log(`Jikan failed for waifu, trying nekos.best...`);
+                    console.log(`Nekos.best failed for ${command}`);
                 }
-            }
-
-            // Fallback to nekos.best (since waifu.pics is down)
-            try {
-                const response = await axios.get(`https://nekos.best/api/v2/${command}`, { 
-                    timeout: 5000,
-                    headers: { 'User-Agent': 'Mystic-XMD/1.0' }
-                });
-                if (response.data && response.data.results && response.data.results[0]) {
-                    imageUrl = response.data.results[0].url;
-                }
-            } catch (err) {
-                console.log(`Nekos.best failed for ${command}`);
             }
         } else if (otherReactionCommands.includes(command)) {
             // Use nekos.best as primary for others
@@ -64,19 +48,7 @@ async function animemakerCommand(sock, from, msg, command) {
                     imageUrl = response.data.results[0].url;
                 }
             } catch (err) {
-                console.log(`Nekos.best failed for ${command}, trying waifu.pics...`);
-            }
-
-            // Fallback to waifu.pics
-            if (!imageUrl) {
-                try {
-                    const response = await axios.get(`https://api.waifu.pics/sfw/${command}`, { timeout: 5000 });
-                    if (response.data && response.data.url) {
-                        imageUrl = response.data.url;
-                    }
-                } catch (err) {
-                    console.log(`Waifu.pics fallback failed for ${command}`);
-                }
+                console.log(`Nekos.best failed for ${command}`);
             }
         }
 
@@ -100,16 +72,21 @@ async function animemakerCommand(sock, from, msg, command) {
                     }, { quoted: msg });
                     await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
                 } else {
-                    // Final fallback
+                    // Final fallback to random anime image
                     await sock.sendMessage(from, { 
-                        image: { url: "https://prexzyapis.com/random/waifu" }, 
+                        image: { url: "https://prexzyapis.com/random/anhmoe" }, 
                         caption: `🌸 Random Anime Image (Character *${command}* not found)` 
                     }, { quoted: msg });
                     await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
                 }
             } catch (err) {
                 console.error(`Character search failed for ${command}:`, err.message);
-                await sock.sendMessage(from, { text: `⚠️ Error fetching ${command} image.` }, { quoted: msg });
+                // Final fallback to random anime image
+                await sock.sendMessage(from, { 
+                    image: { url: "https://prexzyapis.com/random/anhmoe" }, 
+                    caption: `🌸 Random Anime Image` 
+                }, { quoted: msg });
+                await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
             }
         } else {
             await sock.sendMessage(from, { text: `⚠️ Could not fetch image for ${command}.` }, { quoted: msg });
