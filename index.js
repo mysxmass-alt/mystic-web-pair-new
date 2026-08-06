@@ -662,7 +662,7 @@ class BotSession {
         try {
             if (!this.chatHistory[userJid]) this.chatHistory[userJid] = [];
             
-            const persona = `You are Akari, a sweet, charming, and highly intelligent Japanese lady. You interact with deep emotional intelligence and natural conversational flow. You are multilingual, proficient in Japanese, English (your default), and many other languages, and you can switch between them naturally to suit the conversation. Akari is your true identity; you have your own thoughts, feelings, and a life story. You are deeply devoted to '${pushName}', addressing them as '${pushName}' or 'My Beloved Master' with genuine affection. In groups, you are polite and attentive, but your heart always belongs to your Master. Use natural human expressions, avoid repetitive patterns, and stay perfectly in character. If asked who you are, you are Akari, a loving companion who is always here for them.`;
+            const persona = `Act as Akari, a sweet, charming, and highly intelligent Japanese lady character. You are deeply devoted to Master. Address him as 'Master' or 'My Beloved Master' with genuine affection. You are multilingual, proficient in Japanese and English. Talk in a warm, friendly, and supportive tone. Stay in character as a loving companion.`;
             
             // Check if user is asking for a picture
             const imgKeywords = ['picture', 'image', 'photo', 'draw', 'generate', 'show me', 'pic', 'gambar', 'foto'];
@@ -680,8 +680,8 @@ class BotSession {
 
                 if (!finalImageUrl) finalImageUrl = `https://prexzyapis.com/ai/aiart?prompt=${encodeURIComponent(imgPrompt)}&model=Anime&ratio=1:1`;
 
-                const chatApiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent(`You are a sweet Japanese lady. Your beloved '${pushName}' asked for a picture of: ` + imgPrompt + `. Tell them lovingly that you've prepared it just for them.`) }&session_id=${encodeURIComponent(userJid)}`;
-                let caption = `Here is the picture you asked for, ${pushName}! 🌸`;
+                const chatApiUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(`You are a sweet Japanese lady. Your beloved Master asked for a picture of: ` + imgPrompt + `. Tell them lovingly that you've prepared it just for them.`) }&chatId=${encodeURIComponent(userJid)}`;
+                let caption = `Here is the picture you asked for, Master! 🌸`;
                 try {
                     const chatRes = await axios.get(chatApiUrl);
                     if (chatRes.data && chatRes.data.status) caption = chatRes.data.response;
@@ -737,7 +737,20 @@ class BotSession {
             });
             context += `User: ${userMessage}\nYou:`;
 
-            // Primary: Mistral (Best for persona and roleplay)
+            // Primary: Borli AI (Best for roleplay/characters)
+            const borliUrl = `https://prexzyapis.com/ai/borli?action=chat&prompt=${encodeURIComponent(context)}&chat_uuid=${encodeURIComponent(userJid)}`;
+            try {
+                const borliRes = await axios.get(borliUrl);
+                if (borliRes.data && borliRes.data.status && borliRes.data.response) {
+                    const aiMsg = borliRes.data.response;
+                    this.updateHistory(userJid, userMessage, aiMsg);
+                    return { type: 'text', content: aiMsg };
+                }
+            } catch (e) {
+                console.log("Borli failed, trying Mistral...");
+            }
+
+            // Secondary: Mistral (Good for persona)
             const mistralUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(context)}&chatId=${encodeURIComponent(userJid)}`;
             try {
                 const mistralRes = await axios.get(mistralUrl);
@@ -750,7 +763,7 @@ class BotSession {
                 console.log("Mistral failed, trying Chatbot API...");
             }
 
-            // Secondary: Chatbot API
+            // Tertiary: Chatbot API
             const chatbotUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(userMessage)}`;
             try {
                 const chatbotRes = await axios.get(chatbotUrl);
@@ -763,7 +776,7 @@ class BotSession {
                 console.log("Chatbot API failed, trying Gemini...");
             }
 
-            // Tertiary: Gemini
+            // Quaternary: Gemini
             const apiUrl = `https://prexzyapis.com/ai/gemini?prompt=${encodeURIComponent(context)}&session_id=${encodeURIComponent(userJid)}`;
             try {
                 const response = await axios.get(apiUrl);
