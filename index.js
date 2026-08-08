@@ -496,15 +496,36 @@ if (tgBot) {
             // Create a Baileys-like sock adapter for Telegram
             const tgSock = {
                 sendMessage: async (jid, content, options) => {
-                    if (content.text) return await tgBot.sendMessage(chatId, content.text);
-                    if (content.image) return await tgBot.sendPhoto(chatId, content.image.url || content.image, { caption: content.caption });
-                    if (content.video) return await tgBot.sendVideo(chatId, content.video.url || content.video, { caption: content.caption });
-                    if (content.audio) return await tgBot.sendAudio(chatId, content.audio.url || content.audio);
-                    if (content.sticker) return await tgBot.sendSticker(chatId, content.sticker.url || content.sticker);
-                    if (content.react) return; // Telegram reactions are different, skip for now
+                    try {
+                        if (content.text) return await tgBot.sendMessage(chatId, content.text);
+                        if (content.image) {
+                            const img = content.image.url || content.image;
+                            return await tgBot.sendPhoto(chatId, img, { caption: content.caption });
+                        }
+                        if (content.video) {
+                            const vid = content.video.url || content.video;
+                            return await tgBot.sendVideo(chatId, vid, { caption: content.caption });
+                        }
+                        if (content.audio) {
+                            const aud = content.audio.url || content.audio;
+                            // For Telegram, sendAudio works well with buffers or URLs
+                            return await tgBot.sendAudio(chatId, aud, { title: content.fileName || 'Audio' });
+                        }
+                        if (content.sticker) {
+                            const stk = content.sticker.url || content.sticker;
+                            return await tgBot.sendSticker(chatId, stk);
+                        }
+                        if (content.react) {
+                            // Map reactions to Telegram emojis if possible, or just send as text for now
+                            // return await tgBot.sendMessage(chatId, content.react.text);
+                        }
+                    } catch (e) {
+                        console.error("Telegram SendMessage Error:", e.message);
+                        return await tgBot.sendMessage(chatId, `⚠️ Error sending media: ${e.message}`);
+                    }
                 },
                 react: async (jid, reaction) => {
-                    // Skip for now or implement if needed
+                    // Silently ignore or implement if Telegram supports message reactions via API
                 }
             };
 
@@ -513,6 +534,9 @@ if (tgBot) {
                 if (commandName === 'anime') return await commands.anime(tgSock, chatId, msg, q);
                 if (commandName === 'manga') return await commands.manga(tgSock, chatId, msg, q);
                 if (commandName === 'song') return await commands.song(tgSock, chatId, msg, args);
+                if (commandName === 'video') return await commands.video(tgSock, chatId, msg, args);
+                if (commandName === 'insta' || commandName === 'ig') return await commands.insta(tgSock, chatId, msg, args);
+                if (commandName === 'tiktok' || commandName === 'tt') return await commands.tiktok(tgSock, chatId, msg, args);
                 if (commandName === 'waifu') return await commands.animemaker(tgSock, chatId, msg, 'waifu');
                 if (commandName === 'chatbot') return await commands.chatbot(tgSock, chatId, msg, session, args);
                 
@@ -525,7 +549,7 @@ if (tgBot) {
         }
 
         // AI Chatbot (Akari Persona)
-        if (session.aiEnabled || akariTrigger || isPrivate) {
+        if ((session.aiEnabled || akariTrigger || isPrivate) && !text.startsWith(prefix)) {
             try {
                 await tgBot.sendChatAction(chatId, 'typing');
                 const aiRes = await session.getAIResponse(chatId.toString(), text, pushName);
@@ -533,7 +557,8 @@ if (tgBot) {
                 if (aiRes.type === 'image') {
                     await tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption });
                 } else if (aiRes.type === 'voice') {
-                    await tgBot.sendAudio(chatId, aiRes.url); // Using sendAudio for voice URLs
+                    // Telegram voice notes use sendVoice, generic audio uses sendAudio
+                    await tgBot.sendAudio(chatId, aiRes.url, { title: 'Akari Voice' });
                 } else if (aiRes.type === 'sticker') {
                     await tgBot.sendSticker(chatId, aiRes.url);
                 } else {
