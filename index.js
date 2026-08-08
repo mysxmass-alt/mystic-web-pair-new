@@ -227,9 +227,9 @@ const app = express();
 const server = http.createServer(app);
 
 // Telegram Bot Setup
-const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+const tgToken = process.env.TELEGRAM_BOT_TOKEN || settings.tgBotToken;
 if (!tgToken) {
-    console.error('TELEGRAM_BOT_TOKEN not set in environment variables!');
+    console.error('TELEGRAM_BOT_TOKEN not set in environment variables or settings!');
 }
 
 const tgBot = tgToken ? new TelegramBot(tgToken, { 
@@ -445,9 +445,11 @@ if (tgBot) {
     tgBot.on('message', async (msg) => {
         const chatId = msg.chat.id;
         const text = msg.text;
+        const pushName = msg.from?.first_name || 'User';
 
         if (!text || text.startsWith('/')) return;
 
+        // Numeric pairing logic
         if (/^\d+$/.test(text)) {
             const userId = chatId.toString();
             if (!sessions[userId]) {
@@ -474,6 +476,72 @@ if (tgBot) {
             await tgBot.sendMessage(chatId, initMsg, { parse_mode: 'Markdown' });
             sessions[userId].tgChatId = chatId;
             await sessions[userId].initialize(text);
+            return;
+        }
+
+        // AI Chatbot (Akari Persona)
+        const userId = `tg_${chatId}`;
+        if (!sessions[userId]) sessions[userId] = new BotSession(userId);
+        const session = sessions[userId];
+        
+        const akariTrigger = text.toLowerCase().includes('akari');
+        const isPrivate = msg.chat.type === 'private';
+
+        const prefix = botData.globalPrefix || settings.prefix || '.';
+        if (text.startsWith(prefix)) {
+            const args = text.slice(prefix.length).trim().split(/ +/);
+            const commandName = args.shift().toLowerCase();
+            const q = args.join(' ');
+
+            // Create a Baileys-like sock adapter for Telegram
+            const tgSock = {
+                sendMessage: async (jid, content, options) => {
+                    if (content.text) return await tgBot.sendMessage(chatId, content.text);
+                    if (content.image) return await tgBot.sendPhoto(chatId, content.image.url || content.image, { caption: content.caption });
+                    if (content.video) return await tgBot.sendVideo(chatId, content.video.url || content.video, { caption: content.caption });
+                    if (content.audio) return await tgBot.sendAudio(chatId, content.audio.url || content.audio);
+                    if (content.sticker) return await tgBot.sendSticker(chatId, content.sticker.url || content.sticker);
+                    if (content.react) return; // Telegram reactions are different, skip for now
+                },
+                react: async (jid, reaction) => {
+                    // Skip for now or implement if needed
+                }
+            };
+
+            try {
+                // Handle basic commands
+                if (commandName === 'anime') return await commands.anime(tgSock, chatId, msg, q);
+                if (commandName === 'manga') return await commands.manga(tgSock, chatId, msg, q);
+                if (commandName === 'song') return await commands.song(tgSock, chatId, msg, args);
+                if (commandName === 'waifu') return await commands.animemaker(tgSock, chatId, msg, 'waifu');
+                if (commandName === 'chatbot') return await commands.chatbot(tgSock, chatId, msg, session, args);
+                
+                // For other commands, you can add them here as needed
+            } catch (e) {
+                console.error(`Telegram Command Error (${commandName}):`, e);
+                await tgBot.sendMessage(chatId, `⚠️ Error: ${e.message}`);
+            }
+            return;
+        }
+
+        // AI Chatbot (Akari Persona)
+        if (session.aiEnabled || akariTrigger || isPrivate) {
+            try {
+                await tgBot.sendChatAction(chatId, 'typing');
+                const aiRes = await session.getAIResponse(chatId.toString(), text, pushName);
+                
+                if (aiRes.type === 'image') {
+                    await tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption });
+                } else if (aiRes.type === 'voice') {
+                    await tgBot.sendAudio(chatId, aiRes.url); // Using sendAudio for voice URLs
+                } else if (aiRes.type === 'sticker') {
+                    await tgBot.sendSticker(chatId, aiRes.url);
+                } else {
+                    await tgBot.sendMessage(chatId, aiRes.content);
+                }
+            } catch (e) {
+                console.error("Telegram AI Error:", e);
+            }
         }
     });
 }
