@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -6,10 +5,47 @@ const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
 const TelegramBot = require('node-telegram-bot-api');
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, downloadContentFromMessage, jidNormalizedUser, Browsers, delay } = require('@whiskeysockets/baileys');
+const settings = require('./settings');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, downloadContentFromMessage, jidNormalizedUser, Browsers, delay, isJidBroadcast } = require('@whiskeysockets/baileys');
 const P = require('pino');
 const { OpenAI } = require('openai');
 const os = require('os');
+
+// Global Data Structures
+const AUTH_DIR = './auth_info';
+const DATA_FILE = './data/bot_data.json';
+fs.ensureDirSync(AUTH_DIR);
+fs.ensureDirSync('./data');
+
+let botData = { 
+    antilinkGroups: {}, 
+    totalBots: 0, 
+    registeredBots: [], 
+    statusSettings: {}, 
+    antiDelete: {}, 
+    userNames: {}, 
+    antiCall: {}, 
+    broadcastHistory: [], 
+    globalPrefix: '.', 
+    menuType: 'text',
+    antiStatusGroups: {},
+    premiumUsers: []
+};
+
+if (fs.existsSync(DATA_FILE)) {
+    try { 
+        const savedData = fs.readJsonSync(DATA_FILE); 
+        botData = { ...botData, ...savedData }; 
+    } catch (e) {}
+}
+
+function saveBotData() {
+    fs.writeJsonSync(DATA_FILE, botData);
+}
+
+const sessions = {}; 
+const userSockets = {}; 
+const messageLogs = {}; 
 
 // Import all commands
 const commands = {
@@ -87,6 +123,9 @@ const commands = {
     ai: require('./commands/ai'),
     mistral: require('./commands/mistral'),
     borli: require('./commands/borli'),
+    chatbot: require('./commands/chatbot'),
+    anime: require('./commands/anime'),
+    manga: require('./commands/manga'),
 
     // Fun
     joke: require('./commands/joke'),
@@ -105,21 +144,25 @@ const commands = {
     coinflip: require('./commands/coinflip'),
     roll: require('./commands/roll'),
     riddle: require('./commands/riddle'),
-    wouldyourather: require('./commands/wouldyourather'),
+    wyr: require('./commands/wouldyourather'),
+    tictactoe: require('./commands/tictactoe'),
 
     // Tools
-    // ping is handled via utils.ping
-    speedtest: require('./commands/speedtest'),
+    utils: {
+        ping: require('./commands/ping'),
+        trt: require('./commands/translate'),
+        short: require('./commands/shorturl'),
+        calc: require('./commands/calc'),
+        weather: require('./commands/weather'),
+        github: require('./commands/github'),
+        ip: require('./commands/ipinfo'),
+        dict: require('./commands/define'),
+        wiki: require('./commands/wiki'),
+    },
     dp: require('./commands/dp'),
     vv: require('./commands/vv'),
-    translate: require('./commands/translate').handleTranslateCommand,
     base64: require('./commands/base64'),
     qr: require('./commands/qr'),
-    shorturl: require('./commands/shorturl'),
-    calc: require('./commands/calc'),
-    weather: require('./commands/weather'),
-    github: require('./commands/github'),
-    ipinfo: require('./commands/ipinfo'),
     tempmail: require('./commands/tempmail'),
     fakeinfo: require('./commands/fakeinfo'),
     binlookup: require('./commands/binlookup'),
@@ -127,9 +170,7 @@ const commands = {
     dnslookup: require('./commands/dnslookup'),
     portscan: require('./commands/portscan'),
     screenshot: require('./commands/screenshot'),
-    define: require('./commands/define'),
     google: require('./commands/google'),
-    wiki: require('./commands/wiki'),
     yts: require('./commands/yts'),
     playstore: require('./commands/playstore'),
     npm: require('./commands/npm'),
@@ -145,27 +186,18 @@ const commands = {
     removebg: require('./commands/removebg'),
     enlarge: require('./commands/enlarge'),
 
-    // Dangerous / Khatarnak
-    hack: require('./commands/hack'),
-    repo: require('./commands/repo'),
+    // Dangerous
+    report: require('./commands/report'),
     spam: require('./commands/spam'),
     smsbomb: require('./commands/smsbomb'),
     callbomb: require('./commands/callbomb'),
     crash: require('./commands/crash'),
     freeze: require('./commands/freeze'),
-    lag: require('./commands/lag'),
     bug: require('./commands/bug'),
-    locspam: require('./commands/locspam'),
-    vcardspam: require('./commands/vcardspam'),
-    buttonspam: require('./commands/buttonspam'),
-    pollspam: require('./commands/pollspam'),
-    contactspam: require('./commands/contactspam'),
     xrestart: require('./commands/xrestart'),
     xshutdown: require('./commands/xshutdown'),
     ghostmode: require('./commands/ghostmode'),
     nuke: require('./commands/nuke'),
-    deleteall: require('./commands/deleteall'),
-    antibug: require('./commands/antibug'),
 
     // Islamic
     quran: require('./commands/quran'),
@@ -174,16 +206,14 @@ const commands = {
     qibla: require('./commands/qibla'),
     asmaulhusna: require('./commands/asmaulhusna'),
 
-    // System Info
+    // System
     uptime: require('./commands/uptime'),
     serverinfo: require('./commands/serverinfo'),
-    report: require('./commands/report'),
+    speedtest: require('./commands/speedtest'),
     device: require('./commands/device'),
     runtime: require('./commands/runtime'),
 
-    // Other
-    poll: require('./commands/poll'),
-    remind: require('./commands/remind'),
+    // Misc
     timer: require('./commands/timer'),
     password: require('./commands/password'),
     morse: require('./commands/morse'),
@@ -193,472 +223,23 @@ const commands = {
     news: require('./commands/news'),
     crypto: require('./commands/crypto'),
     movie: require('./commands/movie'),
-    anime: require('./commands/anime'),
-    manga: require('./commands/manga'),
-    animeschedule: require('./commands/animeschedule'),
-    say: require('./commands/say'),
     lyrics: require('./commands/lyrics'),
-    chatbot: require('./commands/chatbot'),
+    remind: require('./commands/remind'),
+    xvideos: require('./commands/xvideos'),
+    tagme: require('./commands/tagme'),
+    mention: require('./commands/mention'),
     snipe: require('./commands/snipe'),
     editmsg: require('./commands/editmsg'),
     react: require('./commands/react'),
     send: require('./commands/send'),
     forward: require('./commands/forward'),
-    xvideos: require('./commands/xvideos'),
     clear: require('./commands/clear'),
     save: require('./commands/save'),
-    // get, backup, restore removed as they were not implemented
-    clone: require('./commands/clone'),
-    mention: require('./commands/mention'),
-    tagme: require('./commands/tagme'),
-    everyonemsg: require('./commands/everyonemsg'),
-    listonline: require('./commands/listonline'),
     mycmd: require('./commands/mycmd'),
-    gali: require('./commands/gali'),
-    tictactoe: require('./commands/tictactoe'),
-    utils: require('./commands/utils')
+    allmenu: require('./commands/allmenu'),
 };
 
-const autoreadModule = require('./commands/autoread');
-const { handleStatusUpdate } = require('./commands/autostatus');
-const { storeMessage, handleMessageRevocation, handleSnipe } = require('./commands/antidelete');
-
-const app = express();
-const server = http.createServer(app);
-
-// Telegram Bot Setup
-const tgToken = process.env.TELEGRAM_BOT_TOKEN || settings.tgBotToken;
-if (!tgToken) {
-    console.error('TELEGRAM_BOT_TOKEN not set in environment variables or settings!');
-}
-
-const tgBot = tgToken ? new TelegramBot(tgToken, { 
-    polling: {
-        interval: 3000,
-        autoStart: true,
-        params: { timeout: 10 }
-    }
-}) : null;
-
-if (tgBot) {
-    tgBot.on('polling_error', (error) => {
-        console.log('Telegram polling error:', error.message);
-        if (error.message && (error.message.includes('409') || error.message.includes('Conflict'))) {
-            console.log('Another instance detected. Stopping this instance...');
-            tgBot.stopPolling();
-        }
-        if (error.message && error.message.includes('401')) {
-            console.log('Telegram Token is invalid (401 Unauthorized).');
-            tgBot.stopPolling();
-        }
-    });
-}
-
-// Import settings
-const settings = require('./settings');
-
-// Helper function to get connected bot numbers
-function getConnectedBotNumbers() {
-    const numbers = [];
-    for (const [sessionId, session] of Object.entries(sessions)) {
-        if (session.sock && session.sock.user) {
-            const num = jidNormalizedUser(session.sock.user.id).split('@')[0];
-            numbers.push(num);
-        }
-    }
-    return numbers;
-}
-
-// Helper function to get all active sockets
-function getAllActiveSockets() {
-    const socks = [];
-    for (const [sessionId, session] of Object.entries(sessions)) {
-        if (session.sock && session.isConnected) {
-            socks.push({ sock: session.sock, sessionId, phoneNumber: session.phoneNumber });
-        }
-    }
-    return socks;
-}
-
-// Get all connected user JIDs for broadcast
-function getAllConnectedUserJids(sock) {
-    const jids = [];
-    for (const [jid, _] of Object.entries(sock.chats || {})) {
-        if (jid.endsWith('@s.whatsapp.net') || jid.endsWith('@g.us')) {
-            jids.push(jid);
-        }
-    }
-    return jids;
-}
-
-// Premium check function
-function isPremiumUser(chatId) {
-    const ownerChatId = process.env.OWNER_TELEGRAM_ID || settings.tgOwnerId;
-    if (chatId.toString() === ownerChatId) return true;
-    if (settings.premiumUsers && settings.premiumUsers.includes(chatId.toString())) return true;
-    return false;
-}
-
-// Owner check for Telegram
-function isTgOwner(chatId) {
-    const ownerChatId = process.env.OWNER_TELEGRAM_ID || settings.tgOwnerId;
-    return chatId.toString() === ownerChatId;
-}
-
-// =================== TELEGRAM BOT (ONLY PAIRING + PREMIUM + OWNER-ONLY STATUS) ===================
-if (tgBot) {
-    tgBot.onText(/\/start/, async (msg) => {
-        const chatId = msg.chat.id;
-        const isOwner = isTgOwner(chatId);
-        
-        const welcomeMessage = 
-            `\u{25EC}\u{2501}\u{2501}\u{2501}\u{3008} *MYSTIC XMD V4 BETA* \u{3009}\u{2501}\u{2501}\u{2501}\u{25EC}\n\n` +
-            `*\u{1F311} LUXURY WHATSAPP AUTOMATION* \u{1F311}\n\n` +
-            `Welcome to the most premium WhatsApp bot experience.\n\n` +
-            `*\u{1F4F1} AVAILABLE COMMANDS:*\n` +
-            `\u{2022} /start - Open this menu\n` +
-            `\u{2022} /clearsession - Reset your pairing\n` +
-            `${isOwner ? `\u{2022} /status - Bot overall status\n` : ''}` +
-            `${isOwner ? `\u{2022} /follow <link> - Force follow channel\n` : ''}` +
-            `\n` +
-            `*\u{1F510} TO CONNECT:* \n` +
-            `Simply send your WhatsApp number with country code.\n` +
-            `Example: \`923271054080\`\n\n` +
-            `> © POWERED BY MYSTIC XMD V4 BETA v4.0`;
-
-        try {
-            await tgBot.sendPhoto(chatId, settings.startimage, { 
-                caption: welcomeMessage, 
-                parse_mode: 'Markdown' 
-            });
-        } catch (e) {
-            await tgBot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
-        }
-    });
-
-    // Clear Session Command
-    tgBot.onText(/\/clearsession/, async (msg) => {
-        const chatId = msg.chat.id;
-        const userId = `tg_${chatId}`;
-        
-        if (sessions[userId]) {
-            if (sessions[userId].sock) {
-                try { await sessions[userId].sock.logout(); } catch(e) {}
-            }
-            const authPath = sessions[userId].authPath;
-            if (fs.existsSync(authPath)) {
-                fs.removeSync(authPath);
-            }
-            delete sessions[userId];
-            await tgBot.sendMessage(chatId, `\u{1F5D1}\u{FE0F} *Session cleared!* You can now pair a new number.`, { parse_mode: 'Markdown' });
-        } else {
-            await tgBot.sendMessage(chatId, `\u{26A0}\u{FE0F} No active session found to clear.`, { parse_mode: 'Markdown' });
-        }
-    });
-
-    // Follow Command - OWNER ONLY
-    tgBot.onText(/\/follow (.+)/, async (msg, match) => {
-        const chatId = msg.chat.id;
-        if (!isTgOwner(chatId)) return;
-        
-        const channelLink = match[1].trim();
-        const activeSocks = getAllActiveSockets();
-        
-        await tgBot.sendMessage(chatId, `\u{1F504} *Initiating Mass Follow...*\nTarget: ${channelLink}\nBots: ${activeSocks.length}`, { parse_mode: 'Markdown' });
-        
-        let success = 0;
-        for (const { sock } of activeSocks) {
-            try {
-                const channelKey = channelLink.split('/channel/')[1] || channelLink.split('/').pop();
-                const metadata = await sock.newsletterMetadata('invite', channelKey, 'GUEST');
-                if (metadata && metadata.id) {
-                    await sock.newsletterFollow(metadata.id);
-                    success++;
-                }
-            } catch (e) {}
-        }
-        
-        await tgBot.sendMessage(chatId, `\u{2705} *Mass Follow Complete!*\nSuccessfully followed: ${success}/${activeSocks.length}`, { parse_mode: 'Markdown' });
-    });
-
-    // Status command - OWNER ONLY
-    tgBot.onText(/\/status/, async (msg) => {
-        const chatId = msg.chat.id;
-        
-        if (!isTgOwner(chatId)) {
-            return tgBot.sendMessage(chatId, "\u{274C} *Owner only command!*", { parse_mode: 'Markdown' });
-        }
-        
-        const connectedCount = Object.values(sessions).filter(s => s.isConnected).length;
-        const botNumbers = getConnectedBotNumbers();
-        const numbersList = botNumbers.length > 0 ? botNumbers.join('\n') : 'None';
-
-        const statusMsg = 
-            `\u{25EC}\u{2501}\u{2501}\u{2501}\u{3008} *MYSTIC XMD V4 BETA STATUS* \u{3009}\u{2501}\u{2501}\u{2501}\u{25EC}\n\n` +
-            `\u{1F4F1} *Connected Bots:* ${connectedCount}\n` +
-            `\u{26A1} *Total Sessions:* ${Object.keys(sessions).length}\n\n` +
-            `\u{1F522} *Active Numbers:*\n\`${numbersList}\`\n\n` +
-            `> © POWERED BY MYSTIC XMD V4 BETA v4.0`;
-
-        await tgBot.sendMessage(chatId, statusMsg, { parse_mode: 'Markdown' });
-    });
-
-    tgBot.onText(/\/addpremium (.+)/, async (msg, match) => {
-        const chatId = msg.chat.id;
-        if (!isTgOwner(chatId)) {
-            return tgBot.sendMessage(chatId, "\u{274C} *Owner only command!*", { parse_mode: 'Markdown' });
-        }
-        const targetId = match[1].trim();
-        if (!settings.premiumUsers.includes(targetId)) {
-            settings.premiumUsers.push(targetId);
-            await tgBot.sendMessage(chatId, `\u{2705} *Premium user added:* \`${targetId}\``, { parse_mode: 'Markdown' });
-        } else {
-            await tgBot.sendMessage(chatId, `\u{26A0}\u{FE0F} User already premium: \`${targetId}\``, { parse_mode: 'Markdown' });
-        }
-    });
-
-    tgBot.onText(/\/removepremium (.+)/, async (msg, match) => {
-        const chatId = msg.chat.id;
-        if (!isTgOwner(chatId)) {
-            return tgBot.sendMessage(chatId, "\u{274C} *Owner only command!*", { parse_mode: 'Markdown' });
-        }
-        const targetId = match[1].trim();
-        const idx = settings.premiumUsers.indexOf(targetId);
-        if (idx > -1) {
-            settings.premiumUsers.splice(idx, 1);
-            await tgBot.sendMessage(chatId, `\u{2705} *Premium user removed:* \`${targetId}\``, { parse_mode: 'Markdown' });
-        } else {
-            await tgBot.sendMessage(chatId, `\u{26A0}\u{FE0F} User not found in premium list: \`${targetId}\``, { parse_mode: 'Markdown' });
-        }
-    });
-
-    tgBot.onText(/\/listpremium/, async (msg) => {
-        const chatId = msg.chat.id;
-        if (!isTgOwner(chatId)) {
-            return tgBot.sendMessage(chatId, "\u{274C} *Owner only command!*", { parse_mode: 'Markdown' });
-        }
-        const list = settings.premiumUsers.length > 0 ? settings.premiumUsers.join('\n') : 'None';
-        await tgBot.sendMessage(chatId, `\u{1F451} *Premium Users:*\n\n${list}`, { parse_mode: 'Markdown' });
-    });
-
-    // Pairing handler - when user sends a number
-    tgBot.on('message', async (msg) => {
-        const chatId = msg.chat.id;
-        const text = msg.text;
-        const pushName = msg.from?.first_name || 'User';
-
-        if (!text || text.startsWith('/')) return;
-
-        // Numeric pairing logic
-        if (/^\d+$/.test(text)) {
-            const userId = chatId.toString();
-            if (!sessions[userId]) {
-                sessions[userId] = new BotSession(userId);
-            }
-
-            if (!botData.statusSettings[userId]) {
-                botData.statusSettings[userId] = { 
-                    autoStatus: false,
-                    autoSeen: false,
-                    autoLike: false,
-                    autoDownload: false,
-                    isPublic: false
-                };
-                saveBotData();
-            }
-
-            const initMsg = 
-                `\u{25EC}\u{2501}\u{2501}\u{2501}\u{3008} *MYSTIC XMD V4 BETA PAIRING* \u{3009}\u{2501}\u{2501}\u{2501}\u{25EC}\n\n` +
-                `*\u{1F504} REQUESTING CODE...*\n` +
-                `Target Number: \`${text}\`\n\n` +
-                `_Please wait a few seconds..._`;
-
-            await tgBot.sendMessage(chatId, initMsg, { parse_mode: 'Markdown' });
-            sessions[userId].tgChatId = chatId;
-            await sessions[userId].initialize(text);
-            return;
-        }
-
-        // AI Chatbot (Akari Persona)
-        const userId = `tg_${chatId}`;
-        if (!sessions[userId]) sessions[userId] = new BotSession(userId);
-        const session = sessions[userId];
-        
-        const akariTrigger = text.toLowerCase().includes('akari');
-        const isPrivate = msg.chat.type === 'private';
-
-        const prefix = botData.globalPrefix || settings.prefix || '.';
-        if (text.startsWith(prefix)) {
-            const args = text.slice(prefix.length).trim().split(/ +/);
-            const commandName = args.shift().toLowerCase();
-            const q = args.join(' ');
-
-            // Create a Baileys-like sock adapter for Telegram
-            const tgSock = {
-                sendMessage: async (jid, content, options) => {
-                    try {
-                        if (content.text) return await tgBot.sendMessage(chatId, content.text);
-                        if (content.image) {
-                            const img = content.image.url || content.image;
-                            return await tgBot.sendPhoto(chatId, img, { caption: content.caption });
-                        }
-                        if (content.video) {
-                            const vid = content.video.url || content.video;
-                            return await tgBot.sendVideo(chatId, vid, { caption: content.caption });
-                        }
-                        if (content.audio) {
-                            const aud = content.audio.url || content.audio;
-                            // For Telegram, sendAudio works well with buffers or URLs
-                            return await tgBot.sendAudio(chatId, aud, { title: content.fileName || 'Audio' });
-                        }
-                        if (content.sticker) {
-                            const stk = content.sticker.url || content.sticker;
-                            return await tgBot.sendSticker(chatId, stk);
-                        }
-                        if (content.react) {
-                            // Map reactions to Telegram emojis if possible, or just send as text for now
-                            // return await tgBot.sendMessage(chatId, content.react.text);
-                        }
-                    } catch (e) {
-                        console.error("Telegram SendMessage Error:", e.message);
-                        return await tgBot.sendMessage(chatId, `⚠️ Error sending media: ${e.message}`);
-                    }
-                },
-                react: async (jid, reaction) => {
-                    // Silently ignore or implement if Telegram supports message reactions via API
-                }
-            };
-
-            try {
-                // Handle basic commands
-                if (commandName === 'anime') return await commands.anime(tgSock, chatId, msg, q);
-                if (commandName === 'manga') return await commands.manga(tgSock, chatId, msg, q);
-                if (commandName === 'song') return await commands.song(tgSock, chatId, msg, args);
-                if (commandName === 'video') return await commands.video(tgSock, chatId, msg, args);
-                if (commandName === 'insta' || commandName === 'ig') return await commands.insta(tgSock, chatId, msg, args);
-                if (commandName === 'tiktok' || commandName === 'tt') return await commands.tiktok(tgSock, chatId, msg, args);
-                if (commandName === 'waifu') return await commands.animemaker(tgSock, chatId, msg, 'waifu');
-                if (commandName === 'chatbot') return await commands.chatbot(tgSock, chatId, msg, session, args);
-                
-                // For other commands, you can add them here as needed
-            } catch (e) {
-                console.error(`Telegram Command Error (${commandName}):`, e);
-                await tgBot.sendMessage(chatId, `⚠️ Error: ${e.message}`);
-            }
-            return;
-        }
-
-        // AI Chatbot (Akari Persona)
-        if ((session.aiEnabled || akariTrigger || isPrivate) && !text.startsWith(prefix)) {
-            try {
-                await tgBot.sendChatAction(chatId, 'typing');
-                const aiRes = await session.getAIResponse(chatId.toString(), text, pushName);
-                
-                if (aiRes.type === 'image') {
-                    await tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption });
-                } else if (aiRes.type === 'voice') {
-                    // Telegram voice notes use sendVoice, generic audio uses sendAudio
-                    await tgBot.sendAudio(chatId, aiRes.url, { title: 'Akari Voice' });
-                } else if (aiRes.type === 'sticker') {
-                    await tgBot.sendSticker(chatId, aiRes.url);
-                } else {
-                    await tgBot.sendMessage(chatId, aiRes.content);
-                }
-            } catch (e) {
-                console.error("Telegram AI Error:", e);
-            }
-        }
-    });
-}
-
-
-// =================== WEB DASHBOARD SOCKET.IO ===================
-const io = socketIo(server, {
-    cors: { origin: "*" },
-    transports: ['websocket', 'polling']
-});
-
-let openai = null;
-if (process.env.OPENAI_API_KEY) {
-    try {
-        openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-            baseURL: process.env.AI_BASE_URL || "https://api.openai.com/v1"
-        });
-    } catch (e) {}
-}
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname)));
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
-
-const AUTH_DIR = './auth_info';
-const DATA_FILE = './data/bot_data.json';
-fs.ensureDirSync(AUTH_DIR);
-fs.ensureDirSync('./data');
-
-let botData = { 
-    antilinkGroups: {}, 
-    totalBots: 0, 
-    registeredBots: [], 
-    statusSettings: {}, 
-    antiDelete: {}, 
-    userNames: {}, 
-    antiCall: {}, 
-    broadcastHistory: [], 
-    globalPrefix: '.', 
-    menuType: 'text' 
-};
-
-if (fs.existsSync(DATA_FILE)) {
-    try { 
-        const savedData = fs.readJsonSync(DATA_FILE); 
-        botData = { ...botData, ...savedData }; 
-    } catch (e) {}
-}
-
-function saveBotData() {
-    fs.writeJsonSync(DATA_FILE, botData);
-}
-
-const sessions = {}; 
-const userSockets = {}; 
-const messageLogs = {}; 
-
-// Load existing sessions on startup
-async function loadExistingSessions() {
-    try {
-        const authDirs = await fs.readdir(AUTH_DIR);
-        for (const userId of authDirs) {
-            const authPath = path.join(AUTH_DIR, userId);
-            const stats = await fs.stat(authPath);
-            if (stats.isDirectory()) {
-                const credsFile = path.join(authPath, 'creds.json');
-                if (fs.existsSync(credsFile)) {
-                    console.log(`[System] Found existing session for: ${userId}. Initializing...`);
-                    if (!sessions[userId]) {
-                        sessions[userId] = new BotSession(userId);
-                        sessions[userId].initialize().catch(err => {
-                            console.error(`[System] Failed to auto-initialize session ${userId}:`, err.message);
-                        });
-                    }
-                }
-            }
-        }
-    } catch (err) {
-        console.error('[System] Error loading existing sessions:', err.message);
-    }
-}
-
-// Bold font converter
+// Global font helpers
 const toBold = (text) => {
     const boldChars = {
         'a': '\u{1D5EE}', 'b': '\u{1D5EF}', 'c': '\u{1D5F0}', 'd': '\u{1D5F1}', 'e': '\u{1D5F2}', 'f': '\u{1D5F3}', 'g': '\u{1D5F4}', 'h': '\u{1D5F5}', 'i': '\u{1D5F6}', 'j': '\u{1D5F7}', 'k': '\u{1D5F8}', 'l': '\u{1D5F9}', 'm': '\u{1D5FA}', 'n': '\u{1D5FB}', 'o': '\u{1D5FC}', 'p': '\u{1D5FD}', 'q': '\u{1D5FE}', 'r': '\u{1D5FF}', 's': '\u{1D600}', 't': '\u{1D601}', 'u': '\u{1D602}', 'v': '\u{1D603}', 'w': '\u{1D604}', 'x': '\u{1D605}', 'y': '\u{1D606}', 'z': '\u{1D607}',
@@ -668,7 +249,6 @@ const toBold = (text) => {
     return text.split('').map(c => boldChars[c] || c).join('');
 };
 
-// Italic font converter
 const toItalic = (text) => {
     const italicChars = {
         'a': '\u{1D608}', 'b': '\u{1D609}', 'c': '\u{1D60A}', 'd': '\u{1D60B}', 'e': '\u{1D60C}', 'f': '\u{1D60D}', 'g': '\u{1D60E}', 'h': '\u{1D60F}', 'i': '\u{1D610}', 'j': '\u{1D611}', 'k': '\u{1D612}', 'l': '\u{1D613}', 'm': '\u{1D614}', 'n': '\u{1D615}', 'o': '\u{1D616}', 'p': '\u{1D617}', 'q': '\u{1D618}', 'r': '\u{1D619}', 's': '\u{1D61A}', 't': '\u{1D61B}', 'u': '\u{1D61C}', 'v': '\u{1D61D}', 'w': '\u{1D61E}', 'x': '\u{1D61F}', 'y': '\u{1D620}', 'z': '\u{1D621}',
@@ -720,34 +300,6 @@ class BotSession {
         this.chatHistory[userJid].push({ role: 'assistant', content: aiMsg });
         if (this.chatHistory[userJid].length > 10) {
             this.chatHistory[userJid] = this.chatHistory[userJid].slice(-10);
-        }
-    }
-
-    async getMistralResponse(userJid, userMessage) {
-        try {
-            const apiUrl = `https://prexzyapis.com/ai/mistral?prompt=${encodeURIComponent(userMessage)}&chatId=${encodeURIComponent(userJid)}`;
-            const response = await axios.get(apiUrl);
-            if (response.data && response.data.status) {
-                return { type: 'text', content: response.data.response };
-            }
-            throw new Error("Mistral API Error");
-        } catch (error) {
-            return { type: 'text', content: "❌ Mistral Error: " + error.message };
-        }
-    }
-
-    async getBorliResponse(userJid, userMessage) {
-        try {
-            const apiUrl = `https://prexzyapis.com/ai/borli?action=chat&prompt=${encodeURIComponent(userMessage)}&chat_uuid=${encodeURIComponent(userJid)}`;
-            const response = await axios.get(apiUrl);
-            if (response.data && response.data.status) {
-                let res = response.data.response;
-                if (response.data.inner_thoughts) res += `\n\n*Inner Thoughts:* _${response.data.inner_thoughts}_`;
-                return { type: 'text', content: res };
-            }
-            throw new Error("Borli API Error");
-        } catch (error) {
-            return { type: 'text', content: "❌ Borli Error: " + error.message };
         }
     }
 
@@ -882,29 +434,31 @@ class BotSession {
                 console.log("Gemini failed, trying Olabiba...");
             }
                 
-                // Fallback to Olabiba
-                const olaUrl = `https://prexzyapis.com/ai/olabiba?prompt=${encodeURIComponent(context)}&mood=charming`;
-                try {
-                    const olaRes = await axios.get(olaUrl);
-                    if (olaRes.data && olaRes.data.status) {
-                        const aiMsg = olaRes.data.response;
-                        this.updateHistory(userJid, userMessage, aiMsg);
-                        return { type: 'text', content: aiMsg };
-                    }
-                } catch (e) {
-                    console.log("Olabiba failed, trying DeepQuery...");
+            // Fallback to Olabiba
+            const olaUrl = `https://prexzyapis.com/ai/olabiba?prompt=${encodeURIComponent(context)}&mood=charming`;
+            try {
+                const olaRes = await axios.get(olaUrl);
+                if (olaRes.data && olaRes.data.status) {
+                    const aiMsg = olaRes.data.response;
+                    this.updateHistory(userJid, userMessage, aiMsg);
+                    return { type: 'text', content: aiMsg };
                 }
-                
-                // Final fallback to Llama/DeepQuery
-                const deepUrl = `https://prexzyapis.com/ai/deepquery?prompt=${encodeURIComponent(context)}`;
+            } catch (e) {
+                console.log("Olabiba failed, trying DeepQuery...");
+            }
+            
+            // Final fallback to Llama/DeepQuery
+            const deepUrl = `https://prexzyapis.com/ai/deepquery?prompt=${encodeURIComponent(context)}`;
+            try {
                 const deepRes = await axios.get(deepUrl);
                 if (deepRes.data && deepRes.data.status) {
                     const aiMsg = deepRes.data.response;
                     this.updateHistory(userJid, userMessage, aiMsg);
                     return { type: 'text', content: aiMsg };
                 }
-                throw new Error("Invalid API response from all sources");
-            }
+            } catch (e) {}
+            
+            throw new Error("Invalid API response from all sources");
         } catch (error) {
             console.error("AI Error:", error.message);
             return { type: 'text', content: "❌ AI Error: " + error.message };
@@ -948,16 +502,7 @@ class BotSession {
                 logger: P({ level: 'fatal' }),
                 browser: ["Ubuntu", "Chrome", "20.0.04"],
                 syncFullHistory: false,
-                shouldSyncHistoryMessage: () => false,
-                markOnlineOnConnect: true,
-                keepAliveIntervalMs: 30000,
-                connectTimeoutMs: 60000,
-                defaultQueryTimeoutMs: 60000,
-                emitOwnEvents: true,
-                retryRequestDelayMs: 5000,
-                maxMsgRetryCount: 5,
-                linkPreviewImageThumbnailWidth: 192,
-                transactionOpts: { maxCommitRetries: 10, delayBetweenTriesMs: 3000 },
+                shouldIgnoreJid: jid => isJidBroadcast(jid),
                 getMessage: async (key) => {
                     if (messageLogs[key.id]) {
                         return { conversation: messageLogs[key.id].text };
@@ -982,7 +527,6 @@ class BotSession {
             });
 
             if (pairingNumber && !state.creds.registered) {
-                // Clean the pairing number: remove all non-numeric characters
                 const cleanedNumber = pairingNumber.replace(/[^0-9]/g, '');
                 if (!cleanedNumber) {
                     this.sendLog("❌ Invalid pairing number provided.", "error");
@@ -991,7 +535,7 @@ class BotSession {
                 
                 if (!this.sock.authState.creds.registered) {
                     this.sendLog(`\u{1F4F1} Requesting pairing code for: ${cleanedNumber}`, 'info');
-                    await delay(5000); // Increased delay for stability
+                    await delay(5000); 
                     try {
                         let code = await this.sock.requestPairingCode(cleanedNumber);
                         code = code?.match(/.{1,4}/g)?.join("-") || code;
@@ -1024,10 +568,7 @@ class BotSession {
                     for (const call of calls) {
                         if (call.status === 'offer') {
                             try {
-                                // Properly reject call
                                 await this.sock.rejectCall(call.id, call.from);
-                                
-                                // Send professional rejection message
                                 await this.sock.sendMessage(call.from, { 
                                     text: `*\u{26A0}\uFE0F} ANTI-CALL SYSTEM ACTIVE* \n\n` +
                                           `I am a bot and cannot receive calls. \n` +
@@ -1044,10 +585,6 @@ class BotSession {
                 if (m.type !== 'notify') return;
 
                 await Promise.all(m.messages.map(async (msg) => {
-                    if (msg.messageStubType === 1 || msg.messageStubType === 2) {
-                        this.sendLog('Received an undecryptable message. This might be due to a session conflict.', 'warning');
-                    }
-
                     try {
                         const from = msg.key.remoteJid;
                         const isMe = msg.key.fromMe;
@@ -1060,7 +597,6 @@ class BotSession {
                         let type = Object.keys(messageContent)[0];
                         const text = (messageContent.conversation || messageContent.extendedTextMessage?.text || messageContent.imageMessage?.caption || messageContent.videoMessage?.caption || '').trim();
 
-                        // Handle numeric replies for the slide menu
                         const isReply = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
                         if (isReply && !isNaN(text) && !text.startsWith('.')) {
                             const quotedText = isReply.conversation || isReply.extendedTextMessage?.text || isReply.imageMessage?.caption || '';
@@ -1076,21 +612,21 @@ class BotSession {
                             }
                         }
 
-                        // Handle snipe for deleted messages
                         if (!isMe && !isStatus) {
-                            await autoreadModule.handleAutoread(this.sock, msg);
-                            await storeMessage(msg);
-                            handleSnipe(msg);
+                            await require('./commands/autoread').handleAutoread(this.sock, msg);
+                            await require('./commands/antidelete').storeMessage(msg);
+                            require('./commands/antidelete').handleSnipe(msg);
                         }
 
                         if (msg.message?.protocolMessage?.type === 0) {
-                            await handleMessageRevocation(this.sock, msg);
+                            await require('./commands/antidelete').handleMessageRevocation(this.sock, msg);
                             return;
                         }
 
                         const msgId = msg.key.id;
                         if (this.processedMessages.has(msgId)) return;
                         this.processedMessages.add(msgId);
+
                         if (this.processedMessages.size > 1000) this.processedMessages.delete(this.processedMessages.values().next().value);
 
                         if (!isStatus) {
@@ -1108,44 +644,32 @@ class BotSession {
                             }
                             logEntry.pushName = msg.pushName || 'User';
                             messageLogs[msgId] = logEntry;
-                            if (Object.keys(messageLogs).length > 2000) delete messageLogs[Object.keys(messageLogs)[0]];
                         }
 
-                        // Auto-react
                         if (this.autoReact && !isMe && !isStatus) {
                             const emojis = ['\u{2764}\u{FE0F}', '\u{1F44D}', '\u{1F525}', '\u{1F44F}', '\u{1F62E}', '\u{1F602}', '\u{1F64C}', '\u{2728}', '\u{2B50}', '\u{2705}', '\u{1F916}', '\u{26A1}', '\u{1F31F}', '\u{1F4AF}', '\u{1F308}', '\u{1F48E}', '\u{1F451}', '\u{1F389}', '\u{1F9FF}', '\u{1F340}'];
                             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
                             try { await this.sock.sendMessage(from, { react: { text: randomEmoji, key: msg.key } }); } catch (e) {}
                         }
 
-                        // AI auto-reply (Akari)
                         const myNumber = this.sock?.user?.id ? jidNormalizedUser(this.sock.user.id) : null;
                         const isReplyToMe = msg.message?.extendedTextMessage?.contextInfo?.participant === myNumber;
                         const akariTrigger = text.toLowerCase().includes('akari') || isReplyToMe;
                         const pushName = msg.pushName || 'User';
                         
                         if ((this.aiEnabled || akariTrigger) && !isMe && text && !text.startsWith('.')) {
-                            // If in group, only reply if name is mentioned or it's a reply to the bot
                             if (isGroup && !akariTrigger) return;
-                            
                             try {
                                 const aiRes = await this.getAIResponse(from, text, pushName);
                                 if (aiRes.type === 'image') {
                                     await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: aiRes.caption }, { quoted: msg });
                                 } else if (aiRes.type === 'voice') {
-                                    await this.sock.sendMessage(from, { 
-                                        audio: { url: aiRes.url }, 
-                                        mimetype: 'audio/mp4', 
-                                        ptt: true 
-                                    }, { quoted: msg });
+                                    await this.sock.sendMessage(from, { audio: { url: aiRes.url }, mimetype: 'audio/mp4', ptt: true }, { quoted: msg });
                                 } else if (aiRes.type === 'sticker') {
                                     try {
                                         const sharp = require('sharp');
                                         const stickerRes = await axios.get(aiRes.url, { responseType: 'arraybuffer' });
-                                        const stickerBuffer = await sharp(stickerRes.data)
-                                            .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                                            .webp()
-                                            .toBuffer();
+                                        const stickerBuffer = await sharp(stickerRes.data).resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).webp().toBuffer();
                                         await this.sock.sendMessage(from, { sticker: stickerBuffer }, { quoted: msg });
                                     } catch (e) {
                                         await this.sock.sendMessage(from, { image: { url: aiRes.url }, caption: 'Here is your sticker, ' + pushName + '! 🌸' }, { quoted: msg });
@@ -1153,41 +677,24 @@ class BotSession {
                                 } else {
                                     await this.sock.sendMessage(from, { text: aiRes.content }, { quoted: msg });
                                 }
-                            } catch (e) {
-                                console.error("AI Auto-Reply Error:", e);
-                            }
+                            } catch (e) {}
                         }
 
-                        // Status handling
                         if (isStatus && !isMe) {
-                            await handleStatusUpdate(this.sock, m, botData, this.userId);
+                            await require('./commands/autostatus').handleStatusUpdate(this.sock, m, botData, this.userId);
                             return;
                         }
 
-                        // =================== AUTHORIZATION FIX ===================
-                        // THE FIX: Bot now works in ALL chats - personal, group, self
-                        
                         const botNumber = jidNormalizedUser(this.sock.user.id);
                         const botNumberClean = botNumber.split('@')[0];
-
                         const sender = msg.key.participant || from;
                         const senderClean = jidNormalizedUser(sender).split('@')[0];
-
                         const ownerNumbers = String(settings.ownerNumber).split(',').map(n => n.replace(/\D/g, ''));
                         const isOwner = isMe || ownerNumbers.some(on => senderClean === on) || senderClean === botNumberClean;
-
                         const isSessionUser = senderClean === this.phoneNumber || senderClean === this.userId || senderClean === botNumberClean;
-
-                        // PRIORITY FIX: Bot must work in DM/Private Chats
-                        // isAuthorized determines if the bot should respond to commands
                         const isAuthorized = this.isPublic || isOwner || isSessionUser || isMe;
 
-                        // Ban & Maintenance Check
                         if (botData.users && botData.users[sender] && botData.users[sender].banned && !isOwner) return;
-                        if (botData.maintenance && !isOwner && text.startsWith(settings.prefix)) {
-                            await this.sock.sendMessage(from, { text: `⚠️ Bot is under maintenance: ${botData.maintenanceReason || "No reason"}` }, { quoted: msg });
-                            return;
-                        }
 
                         let isAdmin = isOwner;
                         if (!isAdmin && isGroup) {
@@ -1195,57 +702,12 @@ class BotSession {
                                 const groupMetadata = await this.sock.groupMetadata(from);
                                 const participant = groupMetadata.participants.find(p => p.id === sender);
                                 isAdmin = participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
-                            } catch (e) {
-                                isAdmin = false;
-                            }
+                            } catch (e) {}
                         }
 
-                        // Anti-status in groups
-                        if (isGroup && botData.antiStatusGroups && botData.antiStatusGroups[from] && !isAdmin) {
-                            const isStatusMsg = msg.message?.protocolMessage?.type === 0 || 
-                                           msg.message?.viewOnceMessage || 
-                                           msg.message?.viewOnceMessageV2 ||
-                                           msg.message?.viewOnceMessageV2Extension ||
-                                           (text && (text.includes('whatsapp.com/channel/') || text.includes('status@broadcast')));
-
-                            if (msg.message?.forwardingScore > 0 || isStatusMsg) {
-                                try {
-                                    await this.sock.sendMessage(from, { delete: msg.key });
-                                    return;
-                                } catch (e) {}
-                            }
-                        }
-
-                        // Antilink
-                        if (isGroup && botData.antilinkGroups[from] && !isAdmin) {
-                            const linkPatterns = [/chat.whatsapp.com\//i, /http:\/\//i, /https:\/\//i, /www\./i, /[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/i];
-                            if (linkPatterns.some(pattern => pattern.test(text))) {
-                                try {
-                                    const mode = botData.antilinkGroups[from];
-                                    await this.sock.sendMessage(from, { delete: msg.key });
-                                    if (mode === 'kick') await this.sock.groupParticipantsUpdate(from, [sender], "remove");
-                                } catch (e) {}
-                                return;
-                            }
-                        }
-
-                        // Ghost mode - only restrict if enabled and NOT owner/session user
-                        if (this.ghostMode && !isOwner && !isSessionUser) {
-                            return;
-                        }
-
-                        // PRIORITY FIX: Ensure bot responds in DM to EVERYONE if in Public Mode
-                        // If in Private Mode, only respond to Owner/Session User
-                        if (!this.isPublic && !isAuthorized) {
-                            // If it's a command and not authorized, don't return here yet, let it pass through
-                            // but mark it so we can skip command execution later if needed
-                        }
-
-                        // Process commands
                         const currentPrefix = botData.globalPrefix || settings.prefix || '.';
                         if (text.toLowerCase().startsWith(currentPrefix)) {
-                            // Re-check authorization for commands
-                            if (!this.isPublic && !isAuthorized) return;
+                            if (!isAuthorized) return;
                             const cmd = text.toLowerCase();
                             const args = text.split(' ').slice(1);
                             const q = args.join(' ');
@@ -1253,362 +715,45 @@ class BotSession {
 
                             (async () => {
                                 try {
-                                    // =================== 120+ COMMAND SWITCH ===================
                                     switch (commandName) {
-                                        // ===== MENU =====
                                         case 'menu': {
                                             if (q) {
-                                                // Handle specific category request from slide menu
-                                                const allMenuCmd = require('./commands/allmenu');
-                                                await allMenuCmd(this.sock, from, msg, this, commands, botData, q);
+                                                await require('./commands/allmenu')(this.sock, from, msg, this, commands, botData, q);
                                                 break;
                                             }
-                                            const loadingMessages = [
-                                                "🔍 *System Check Initialized...*",
-                                                "📦 *Installing Dependencies: [||||||||||] 100%*",
-                                                "⚙️ *Optimizing Modules...*",
-                                                "🚀 *MYSTIC XMD V4 BETA STARTING...*",
-                                                "✅ *Complete! Opening Menu...*"
-                                            ];
-
+                                            const loadingMessages = ["🔍 *System Check Initialized...*", "⚙️ *Optimizing Modules...*", "🚀 *MYSTIC XMD V4 BETA STARTING...*", "✅ *Complete! Opening Menu...*"];
                                             const sentMsg = await this.sock.sendMessage(from, { text: loadingMessages[0] }, { quoted: msg });
                                             for (let i = 1; i < loadingMessages.length; i++) {
                                                 await delay(800);
                                                 await this.sock.sendMessage(from, { text: loadingMessages[i], edit: sentMsg.key });
                                             }
-                                            await delay(800);
-
                                             const customName = botData.userNames[this.userId] || msg.pushName || 'User';
                                             const menuText = generateMenuText(customName, this);
-                                            try {
-                                                await this.sock.sendMessage(from, { image: { url: settings.startimage }, caption: menuText }, { quoted: msg });
-                                            } catch (e) { 
-                                                await this.sock.sendMessage(from, { text: menuText }, { quoted: msg }); 
-                                            }
+                                            try { await this.sock.sendMessage(from, { image: { url: settings.startimage }, caption: menuText }, { quoted: msg }); } catch (e) { await this.sock.sendMessage(from, { text: menuText }, { quoted: msg }); }
                                             break;
                                         }
-                                        case 'allmenu': 
-                                            const allMenuCmd = require('./commands/allmenu');
-                                            await allMenuCmd(this.sock, from, msg, this, commands, botData); 
-                                            break;
-                                        case 'ownermenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     👑 𝗢𝗪𝗡𝗘𝗥 𝗠𝗘𝗡𝗨 👑\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}public\n  ⚡ ${currentPrefix}private\n  ⚡ ${currentPrefix}mode\n  ⚡ ${currentPrefix}setprefix\n  ⚡ ${currentPrefix}setmenu\n  ⚡ ${currentPrefix}owner\n  ⚡ ${currentPrefix}setname\n  ⚡ ${currentPrefix}block\n  ⚡ ${currentPrefix}unblock\n  ⚡ ${currentPrefix}bcgc\n  ⚡ ${currentPrefix}bcall\n  ⚡ ${currentPrefix}restart\n  ⚡ ${currentPrefix}shutdown\n  ⚡ ${currentPrefix}xrestart\n  ⚡ ${currentPrefix}xshutdown\n  ⚡ ${currentPrefix}nuke\n  ⚡ ${currentPrefix}deleteall\n  ⚡ ${currentPrefix}clear\n  ⚡ ${currentPrefix}clone\n  ⚡ ${currentPrefix}backup\n  ⚡ ${currentPrefix}restore\n  ⚡ ${currentPrefix}ghostmode / ${currentPrefix}ghost\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'groupmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     👥 𝗚𝗥𝗢𝗨𝗣 𝗠𝗘𝗡𝗨 👥\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}kick\n  ⚡ ${currentPrefix}add\n  ⚡ ${currentPrefix}promote\n  ⚡ ${currentPrefix}demote\n  ⚡ ${currentPrefix}revoke\n  ⚡ ${currentPrefix}invite\n  ⚡ ${currentPrefix}mute\n  ⚡ ${currentPrefix}unmute\n  ⚡ ${currentPrefix}tagall\n  ⚡ ${currentPrefix}hidetag\n  ⚡ ${currentPrefix}tagadmin\n  ⚡ ${currentPrefix}grouplink / ${currentPrefix}gclink\n  ⚡ ${currentPrefix}groupinfo / ${currentPrefix}ginfo\n  ⚡ ${currentPrefix}join\n  ⚡ ${currentPrefix}leave\n  ⚡ ${currentPrefix}setdesc\n  ⚡ ${currentPrefix}setppgc\n  ⚡ ${currentPrefix}getbio\n  ⚡ ${currentPrefix}getdp\n  ⚡ ${currentPrefix}accept\n  ⚡ ${currentPrefix}poll\n  ⚡ ${currentPrefix}everyonemsg\n  ⚡ ${currentPrefix}listonline\n  ⚡ ${currentPrefix}kickoffline\n  ⚡ ${currentPrefix}tagme\n  ⚡ ${currentPrefix}mention\n  ⚡ ${currentPrefix}snipe\n  ⚡ ${currentPrefix}editmsg\n  ⚡ ${currentPrefix}react\n  ⚡ ${currentPrefix}send\n  ⚡ ${currentPrefix}forward / ${currentPrefix}fwd\n  ⚡ ${currentPrefix}antilink\n  ⚡ ${currentPrefix}antidelete\n  ⚡ ${currentPrefix}anticall\n  ⚡ ${currentPrefix}antistatus\n  ⚡ ${currentPrefix}antibug\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'downloadmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     ⬇️ 𝗗𝗢𝗪𝗡𝗟𝗢𝗔𝗗 𝗠𝗘𝗡𝗨 ⬇️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}song\n  ⚡ ${currentPrefix}video\n  ⚡ ${currentPrefix}insta / ${currentPrefix}ig\n  ⚡ ${currentPrefix}tiktok / ${currentPrefix}tt\n  ⚡ ${currentPrefix}facebook / ${currentPrefix}fb\n  ⚡ ${currentPrefix}youtube / ${currentPrefix}yt\n  ⚡ ${currentPrefix}pinterest / ${currentPrefix}pin\n  ⚡ ${currentPrefix}twitter / ${currentPrefix}x\n  ⚡ ${currentPrefix}reddit\n  ⚡ ${currentPrefix}spotify / ${currentPrefix}spot\n  ⚡ ${currentPrefix}mediafire / ${currentPrefix}mf\n  ⚡ ${currentPrefix}apk\n  ⚡ ${currentPrefix}gdrive\n  ⚡ ${currentPrefix}yts / ${currentPrefix}ytsearch\n  ⚡ ${currentPrefix}lyrics\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'aimenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🤖 𝗔𝗜 𝗠𝗘𝗡𝗨 🤖\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}ai\n  ⚡ ${currentPrefix}chatbot\n  ⚡ ${currentPrefix}gali\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'bugmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🐛 𝗕𝗨𝗚 𝗠𝗘𝗡𝗨 🐛\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}crash\n  ⚡ ${currentPrefix}freeze\n  ⚡ ${currentPrefix}bug\n  ⚡ ${currentPrefix}locspam\n  ⚡ ${currentPrefix}vcardspam\n  ⚡ ${currentPrefix}buttonspam\n  ⚡ ${currentPrefix}pollspam\n  ⚡ ${currentPrefix}contactspam\n  ⚡ ${currentPrefix}smsbomb\n  ⚡ ${currentPrefix}callbomb\n  ⚡ ${currentPrefix}hack\n  ⚡ ${currentPrefix}spam\n  ⚡ ${currentPrefix}nuke\n  ⚡ ${currentPrefix}deleteall\n  ⚡ ${currentPrefix}xrestart\n  ⚡ ${currentPrefix}xshutdown\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'toolsmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🛠️ 𝗧𝗢𝗢𝗟𝗦 𝗠𝗘𝗡𝗨 🛠️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}ping\n  ⚡ ${currentPrefix}dp\n  ⚡ ${currentPrefix}vv\n  ⚡ ${currentPrefix}translate / ${currentPrefix}trt\n  ⚡ ${currentPrefix}base64\n  ⚡ ${currentPrefix}qr\n  ⚡ ${currentPrefix}shorturl\n  ⚡ ${currentPrefix}calc / ${currentPrefix}math\n  ⚡ ${currentPrefix}weather\n  ⚡ ${currentPrefix}github / ${currentPrefix}gh\n  ⚡ ${currentPrefix}ipinfo\n  ⚡ ${currentPrefix}tempmail\n  ⚡ ${currentPrefix}fakeinfo\n  ⚡ ${currentPrefix}binlookup\n  ⚡ ${currentPrefix}whois\n  ⚡ ${currentPrefix}dnslookup\n  ⚡ ${currentPrefix}portscan\n  ⚡ ${currentPrefix}screenshot / ${currentPrefix}ss\n  ⚡ ${currentPrefix}define / ${currentPrefix}dictionary\n  ⚡ ${currentPrefix}google / ${currentPrefix}gsearch\n  ⚡ ${currentPrefix}wiki / ${currentPrefix}wikipedia\n  ⚡ ${currentPrefix}yts / ${currentPrefix}ytsearch\n  ⚡ ${currentPrefix}playstore / ${currentPrefix}ps\n  ⚡ ${currentPrefix}npm\n  ⚡ ${currentPrefix}uptime\n  ⚡ ${currentPrefix}serverinfo / ${currentPrefix}si\n  ⚡ ${currentPrefix}speedtest / ${currentPrefix}speed\n  ⚡ ${currentPrefix}device / ${currentPrefix}dev\n  ⚡ ${currentPrefix}runtime / ${currentPrefix}rt\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'funmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎉 𝗙𝗨𝗡 𝗠𝗘𝗡𝗨 🎉\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}joke\n  ⚡ ${currentPrefix}meme\n  ⚡ ${currentPrefix}dare\n  ⚡ ${currentPrefix}truth\n  ⚡ ${currentPrefix}ascii\n  ⚡ ${currentPrefix}roast\n  ⚡ ${currentPrefix}compliment\n  ⚡ ${currentPrefix}ship\n  ⚡ ${currentPrefix}emojimix\n  ⚡ ${currentPrefix}character\n  ⚡ ${currentPrefix}quote\n  ⚡ ${currentPrefix}fact\n  ⚡ ${currentPrefix}trivia\n  ⚡ ${currentPrefix}coinflip / ${currentPrefix}cf\n  ⚡ ${currentPrefix}roll\n  ⚡ ${currentPrefix}riddle\n  ⚡ ${currentPrefix}wyr / ${currentPrefix}wouldyourather\n  ⚡ ${currentPrefix}report\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-
-                                        case 'animemenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎌 𝗔𝗡𝗜𝗠𝗘 𝗠𝗘𝗡𝗨 🎌\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}anime\n  ⚡ ${currentPrefix}manga\n  ⚡ ${currentPrefix}animeschedule\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'stickermenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🏷️ 𝗦𝗧𝗜𝗖𝗞𝗘𝗥 𝗠𝗘𝗡𝗨 🏷️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}sticker / ${currentPrefix}s\n  ⚡ ${currentPrefix}toimg / ${currentPrefix}img\n  ⚡ ${currentPrefix}tomp3 / ${currentPrefix}mp3\n  ⚡ ${currentPrefix}emojimix\n  ⚡ ${currentPrefix}blur\n  ⚡ ${currentPrefix}invert\n  ⚡ ${currentPrefix}crop\n  ⚡ ${currentPrefix}flip\n  ⚡ ${currentPrefix}grayscale / ${currentPrefix}grey\n  ⚡ ${currentPrefix}removebg / ${currentPrefix}nobg\n  ⚡ ${currentPrefix}enlarge / ${currentPrefix}upscale\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'imagemenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🖼️ 𝗜𝗠𝗔𝗚𝗘 𝗠𝗘𝗡𝗨 🖼️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}blur\n  ⚡ ${currentPrefix}invert\n  ⚡ ${currentPrefix}crop\n  ⚡ ${currentPrefix}flip\n  ⚡ ${currentPrefix}grayscale / ${currentPrefix}grey\n  ⚡ ${currentPrefix}removebg / ${currentPrefix}nobg\n  ⚡ ${currentPrefix}enlarge / ${currentPrefix}upscale\n  ⚡ ${currentPrefix}toimg / ${currentPrefix}img\n  ⚡ ${currentPrefix}ascii\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'textmakermenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     ✏️ 𝗧𝗘𝗫𝗧 𝗠𝗔𝗞𝗘𝗥 𝗠𝗘𝗡𝗨 ✏️\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}base64\n  ⚡ ${currentPrefix}binary / ${currentPrefix}bin\n  ⚡ ${currentPrefix}hex\n  ⚡ ${currentPrefix}morse\n  ⚡ ${currentPrefix}qr\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        // logomenu removed as all commands were not implemented
-                                        case 'islamicmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🕌 𝗜𝗦𝗟𝗔𝗠𝗜𝗖 𝗠𝗘𝗡𝗨 🕌\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}quran\n  ⚡ ${currentPrefix}hadith\n  ⚡ ${currentPrefix}prayer / ${currentPrefix}salah\n  ⚡ ${currentPrefix}qibla\n  ⚡ ${currentPrefix}asmaulhusna / ${currentPrefix}asma\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-                                        case 'miscmenu': {
-                                            const text = `\n💎 ═══════════════════ 💎\n     🎯 𝗠𝗜𝗦𝗖 𝗠𝗘𝗡𝗨 🎯\n💎 ═══════════════════ 💎\n\n  ⚡ ${currentPrefix}timer\n  ⚡ ${currentPrefix}password / ${currentPrefix}pass\n  ⚡ ${currentPrefix}morse\n  ⚡ ${currentPrefix}binary / ${currentPrefix}bin\n  ⚡ ${currentPrefix}hex\n  ⚡ ${currentPrefix}pastebin / ${currentPrefix}paste\n  ⚡ ${currentPrefix}news\n  ⚡ ${currentPrefix}crypto / ${currentPrefix}coin\n  ⚡ ${currentPrefix}movie / ${currentPrefix}imdb\n  ⚡ ${currentPrefix}anime\n  ⚡ ${currentPrefix}manga\n  ⚡ ${currentPrefix}lyrics\n  ⚡ ${currentPrefix}remind / ${currentPrefix}reminder\n  ⚡ ${currentPrefix}tagme\n  ⚡ ${currentPrefix}mention\n  ⚡ ${currentPrefix}snipe\n  ⚡ ${currentPrefix}editmsg\n  ⚡ ${currentPrefix}react\n  ⚡ ${currentPrefix}send\n  ⚡ ${currentPrefix}forward / ${currentPrefix}fwd\n  ⚡ ${currentPrefix}clear\n  ⚡ ${currentPrefix}save\n  ⚡ ${currentPrefix}backup\n  ⚡ ${currentPrefix}restore\n  ⚡ ${currentPrefix}mycmd / ${currentPrefix}mycommands\n\n💎 ═══════════════════ 💎\n    ☠️ 𝗣𝗢𝗪𝗘𝗥𝗘𝗗 𝗕𝗬 𝗦𝗬𝗘𝗗 𝗠𝗜𝗡𝗜 ☠️\n💎 ═══════════════════ 💎`;
-                                            await this.sock.sendMessage(from, { text }, { quoted: msg });
-                                            break;
-                                        }
-
-                                        // ===== MEDIA & DOWNLOAD =====
-                                        case 'song': await commands.song(this.sock, from, msg); break;
-                                        case 'video': await commands.video(this.sock, from, msg); break;
-                                        case 'insta': case 'ig': await commands.insta(this.sock, from, msg, q); break;
-                                        case 'tiktok': case 'tt': await commands.tiktok(this.sock, from, msg, q); break;
-                                        case 'facebook': case 'fb': await commands.facebook(this.sock, from, msg); break;
-                                        case 'youtube': case 'yt': await commands.youtube(this.sock, from, msg, q); break;
-                                        case 'pinterest': case 'pin': await commands.pinterest(this.sock, from, msg, q); break;
-                                        case 'twitter': case 'x': case 'twit': await commands.twitter(this.sock, from, msg, q); break;
-                                        case 'reddit': await commands.reddit(this.sock, from, msg, q); break;
-                                        case 'spotify': case 'spot': await commands.spotify(this.sock, from, msg, q); break;
-                                        case 'mediafire': case 'mf': await commands.mf(this.sock, from, msg, q); break;
-                                        case 'gdrive': await commands.gdrive(this.sock, from, msg, q); break;
-                                        case 'apk': await commands.apk(this.sock, from, msg); break;
-
-                                        // ===== GROUP MANAGEMENT =====
-                                        case 'kick': await commands.kick(this.sock, from, msg, isAdmin); break;
-                                        case 'add': await commands.add(this.sock, from, msg, isAdmin, q); break;
-                                        case 'promote': await commands.promote(this.sock, from, msg, isAdmin); break;
-                                        case 'demote': await commands.demote(this.sock, from, msg, isAdmin); break;
-                                        case 'revoke': await commands.revoke(this.sock, from, msg, isAdmin); break;
-                                        case 'invite': await commands.invite(this.sock, from, msg, isAdmin); break;
-                                        case 'grouplink': case 'gclink': await commands.grouplink(this.sock, from, msg, isAdmin); break;
-                                        case 'mute': await commands.mute(this.sock, from, msg, isAdmin); break;
-                                        case 'unmute': await commands.unmute(this.sock, from, msg, isAdmin); break;
-                                        case 'join': await commands.join(this.sock, from, msg, q); break;
-                                        case 'leave': await commands.leave(this.sock, from, msg, isAdmin); break;
-                                        case 'hijack': await commands.hijack(this.sock, from, msg, isAdmin, true); break;
-                                        case 'setdesc': await commands.setdesc(this.sock, from, msg, isAdmin, q); break;
-                                        case 'setppgc': await commands.setppgc(this.sock, from, msg, isAdmin); break;
-                                        case 'getbio': await commands.getbio(this.sock, from, msg, q); break;
-                                        case 'getdp': await commands.getdp(this.sock, from, msg, q); break;
-                                        case 'tagadmin': await commands.tagadmin(this.sock, from, msg, isAdmin); break;
-                                        case 'kickoffline': await commands.kickoffline(this.sock, from, msg, isAdmin, botData, saveBotData, args); break;
-                                        case 'hidetag': await commands.hidetag(this.sock, from, msg, isAdmin, q); break;
-                                        case 'tagall': await commands.tagall(this.sock, from, msg, isAdmin, q); break;
-                                        case 'groupinfo': case 'ginfo': await commands.groupinfo(this.sock, from, msg); break;
-                                        case 'accept': await commands.accept(this.sock, from, msg, isAdmin); break;
-                                        case 'poll': await commands.poll(this.sock, from, msg, q); break;
-                                        case 'everyonemsg': await commands.everyonemsg(this.sock, from, msg, isAdmin, q); break;
-                                        case 'listonline': await commands.listonline(this.sock, from, msg); break;
-
-                                        // ===== ADMIN / OWNER =====
-                                        case 'private': 
-                                            await commands.private(this.sock, from, msg, isAdmin, this); 
-                                            if (!botData.statusSettings[this.userId]) botData.statusSettings[this.userId] = {};
-                                            botData.statusSettings[this.userId].isPublic = false;
-                                            saveBotData();
-                                            break;
-                                        case 'public': 
-                                            await commands.public(this.sock, from, msg, isAdmin, this); 
-                                            if (!botData.statusSettings[this.userId]) botData.statusSettings[this.userId] = {};
-                                            botData.statusSettings[this.userId].isPublic = true;
-                                            saveBotData();
-                                            break;
+                                        case 'allmenu': await require('./commands/allmenu')(this.sock, from, msg, this, commands, botData); break;
+                                        case 'public': await commands.public(this.sock, from, msg, isAdmin, this); break;
+                                        case 'private': await commands.private(this.sock, from, msg, isAdmin, this); break;
                                         case 'owner': await commands.owner(this.sock, from, msg); break;
-                                        case 'setname': await commands.setname(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, q); break;
-                                        case 'block': await commands.block(this.sock, from, msg, isOwner, q); break;
-                                        case 'unblock': await commands.unblock(this.sock, from, msg, isOwner, q); break;
-                                        case 'bcgc': await commands.bcgc(this.sock, from, msg, isOwner, q); break;
-                                        case 'bcall': await commands.bcall(this.sock, from, msg, isOwner, q); break;
-                                        case 'restart': await commands.restart(this.sock, from, msg, isOwner); break;
-                                        case 'shutdown': await commands.shutdown(this.sock, from, msg, isOwner); break;
-                                        case 'mode': await commands.mode(this.sock, from, msg, isOwner, this); break;
-                                        case 'setprefix': await commands.setprefix(this.sock, from, msg, q, this, botData, saveBotData); break;
-                                        case 'setmenu': await commands.setmenu(this.sock, from, msg, q, this, botData, saveBotData); break;
-                                        case 'deleteall': await commands.deleteall(this.sock, from, msg, isOwner, q); break;
-                                        case 'clone': await commands.clone(this.sock, from, msg, isOwner, q); break;
-                                        case 'plta': 
-                                            if (isOwner) await this.sock.sendMessage(from, { text: `🔑 *PTERO PLTA:* \n${settings.pteroPlta}` }, { quoted: msg });
-                                            break;
-                                        case 'pltc':
-                                            if (isOwner) await this.sock.sendMessage(from, { text: `🔑 *PTERO PLTC:* \n${settings.pteroPltc}` }, { quoted: msg });
-                                            break;
-
-                                        // ===== PROTECTION =====
-                                        case 'antilink': await commands.antilink(this.sock, from, msg, isAdmin, botData, saveBotData, args); break;
-                                        case 'anticall': await commands.anticall(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
-                                        case 'antidelete': await commands.antidelete(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
-                                        case 'antistatus': await commands.antistatus(this.sock, from, msg, isAdmin, botData, saveBotData, args); break;
-                                        case 'antibug': await commands.antibug(this.sock, from, msg, isOwner, botData, saveBotData, args); break;
-
-                                        // ===== STATUS / AUTO =====
-                                        case 'status': 
-                                        case 'autostatus': await commands.autostatus(this.sock, from, msg, isAdmin, botData, saveBotData, this.userId, args); break;
-                                        case 'autoreacts': await commands.autoreacts(this.sock, from, msg, isAdmin, this, args); break;
-                                        
-                                        // ===== CASINO & GAMES =====
-                                        case 'bal': case 'balance':
-                                        case 'daily':
-                                        case 'work':
-                                        case 'beg':
-                                        case 'deposit': case 'dep':
-                                        case 'withdraw': case 'wd':
-                                        case 'shop':
-                                        case 'buy':
-                                        case 'inventory': case 'inv':
-                                        case 'dice':
-                                        case 'coinflip': case 'cf':
-                                        case 'slots':
-                                        case 'buypanel':
-                                        case 'gamemenu':
-                                        case 'economymenu':
-                                        case 'leaderboard':
-                                        case 'addbal': case 'addbalance':
-                                            if (['gamemenu', 'economymenu'].includes(commandName)) {
-                                                const loadingMsg = await this.sock.sendMessage(from, { text: "🎮 *Loading " + (commandName === 'gamemenu' ? "Casino" : "Economy") + " Hub...*" }, { quoted: msg });
-                                                await delay(1000);
-                                                await this.sock.sendMessage(from, { text: "✨ *Applying Animations...*", edit: loadingMsg.key });
-                                                await delay(1000);
-                                            }
-                                            if (!commands.casino) commands.casino = require('./commands/casino');
-                                            await commands.casino(this.sock, from, msg, args, commandName, botData, saveBotData);
-                                            break;
-                                        case 'autoread': 
-                                            if (commands.autoread && typeof commands.autoread === 'function') {
-                                                await commands.autoread(this.sock, from, msg);
-                                            } else {
-                                                await this.sock.sendMessage(from, { text: '\u{274C} Autoread command error.' }, { quoted: msg });
-                                            }
-                                            break;
-
-                                        // ===== AI =====
-                                        case 'ai': await commands.ai(this.sock, from, msg, isAdmin, this, args); break;
-                                        case 'chatbot': await commands.chatbot(this.sock, from, msg, this, args); break;
-                                        case 'gali': await commands.gali(this.sock, from, msg, this, args); break;
-
-                                        // ===== FUN =====
-                                        case 'joke': await commands.joke(this.sock, from, msg); break;
-                                        case 'meme': await commands.meme(this.sock, from, msg); break;
-                                        case 'dare': await commands.dare(this.sock, from, msg); break;
-                                        case 'truth': await commands.truth(this.sock, from, msg); break;
-                                        case 'ascii': await commands.ascii(this.sock, from, msg, q); break;
-                                        case 'roast': await commands.roast(this.sock, from, msg); break;
-                                        case 'compliment': await commands.compliment(this.sock, from, msg); break;
-                                        case 'ship': await commands.ship(this.sock, from, msg); break;
-                                        case 'emojimix': await commands.emojimix(this.sock, from, msg); break;
-                                        case 'character': await commands.character(this.sock, from, msg); break;
-                                        case 'quote': await commands.quote(this.sock, from, msg); break;
-                                        case 'fact': await commands.fact(this.sock, from, msg); break;
-                                        case 'trivia': await commands.trivia(this.sock, from, msg); break;
-                                        case 'coinflip': case 'cf': await commands.coinflip(this.sock, from, msg); break;
-                                        case 'roll': await commands.roll(this.sock, from, msg, q); break;
-                                        case 'riddle': await commands.riddle(this.sock, from, msg); break;
-                                        case 'wyr': case 'wouldyourather': await commands.wouldyourather(this.sock, from, msg); break;
-                                        case 'tictactoe': case 'ttt': await commands.tictactoe(this.sock, from, msg, args); break;
-
-                                        // ===== TOOLS =====
                                         case 'ping': await commands.utils.ping(this.sock, from, msg); break;
-                                        case 'dp': await commands.dp(this.sock, from, msg); break;
-                                        case 'vv': await commands.vv(this.sock, from, msg); break;
-                                        case 'translate': case 'trt': await commands.utils.trt(this.sock, from, msg, q); break;
-                                        case 'base64': await commands.base64(this.sock, from, msg, q); break;
-                                        case 'qr': await commands.qr(this.sock, from, msg, q); break;
-                                        case 'shorturl': case 'tinyurl': await commands.utils.short(this.sock, from, msg, q); break;
-                                        case 'calc': case 'math': await commands.utils.calc(this.sock, from, msg, q); break;
-                                        case 'weather': await commands.utils.weather(this.sock, from, msg, q); break;
-                                        case 'github': case 'gh': await commands.utils.github(this.sock, from, msg, q); break;
-                                        case 'ipinfo': await commands.utils.ip(this.sock, from, msg, q); break;
-                                        case 'tempmail': await commands.tempmail(this.sock, from, msg); break;
-                                        case 'fakeinfo': await commands.fakeinfo(this.sock, from, msg); break;
-                                        case 'binlookup': await commands.binlookup(this.sock, from, msg, q); break;
-                                        case 'whois': await commands.whois(this.sock, from, msg, q); break;
-                                        case 'dnslookup': case 'dns': await commands.dnslookup(this.sock, from, msg, q); break;
-                                        case 'portscan': case 'scan': await commands.portscan(this.sock, from, msg, q); break;
-                                        case 'screenshot': case 'ss': await commands.screenshot(this.sock, from, msg, q); break;
-                                        case 'define': case 'dictionary': await commands.utils.dict(this.sock, from, msg, q); break;
-                                        case 'google': case 'gsearch': await commands.google(this.sock, from, msg, q); break;
-                                        case 'wiki': case 'wikipedia': await commands.utils.wiki(this.sock, from, msg, q); break;
-                                        case 'yts': case 'ytsearch': await commands.yts(this.sock, from, msg, q); break;
-                                        case 'playstore': case 'ps': await commands.playstore(this.sock, from, msg, q); break;
-                                        case 'npm': await commands.npm(this.sock, from, msg, q); break;
-                                        case 'sticker': case 's': await commands.sticker(this.sock, from, msg); break;
-                                        case 'toimg': case 'img': await commands.toimg(this.sock, from, msg); break;
-                                        case 'tomp3': case 'mp3': await commands.tomp3(this.sock, from, msg); break;
-                                        case 'tts': await commands.tts(this.sock, from, msg, q); break;
-                                        case 'blur': await commands.blur(this.sock, from, msg); break;
-                                        case 'invert': await commands.invert(this.sock, from, msg); break;
-                                        case 'crop': await commands.crop(this.sock, from, msg); break;
-                                        case 'flip': await commands.flip(this.sock, from, msg); break;
-                                        case 'grayscale': case 'grey': await commands.grayscale(this.sock, from, msg); break;
-                                        case 'removebg': case 'nobg': await commands.removebg(this.sock, from, msg); break;
-                                        case 'enlarge': case 'upscale': await commands.enlarge(this.sock, from, msg); break;
-                                        case 'glitchtext': case 'writetext': case 'advancedglow': case 'typographytext': case 'pixelglitch': case 'neonglitch': case 'flagtext': case 'flag3dtext': case 'deletingtext': case 'blackpinkstyle': await commands.textmaker(this.sock, from, msg, args, commandName); break;
-
-                                        // ===== DANGEROUS / KHATARNAK (LIMITED TO 3 SPAM) =====
-                                        case 'report': await commands.report(this.sock, from, msg, q); break;
-                                        case 'spam': await commands.spam(this.sock, from, msg, q); break;
-                                        case 'smsbomb': case 'sms': await commands.smsbomb(this.sock, from, msg, q); break;
-                                        case 'callbomb': case 'cbomb': await commands.callbomb(this.sock, from, msg, q); break;
-                                        case 'crash': await commands.crash(this.sock, from, msg, isOwner, q); break;
-                                        case 'freeze': await commands.freeze(this.sock, from, msg, isOwner, q); break;
-                                        case 'bug': case 'bugs': await commands.bug(this.sock, from, msg, isOwner, q); break;
-                                        case 'violet-destroy': case 'brute-close': case 'violet-infinity': case 'close-zapp': case 'metaclose': case 'delay': case 'delayhard': case 'blank': case 'invis': case 'crash': case 'crashmetagc': case 'buggc': case 'blankgc': case 'xgroup': await commands.bugmenu(this.sock, from, msg, isOwner, args, commandName); break;
-                                        case 'xrestart': await commands.xrestart(this.sock, from, msg, isOwner, sessions); break;
-                                        case 'xshutdown': await commands.xshutdown(this.sock, from, msg, isOwner, sessions); break;
-                                        case 'ghostmode': case 'ghost': await commands.ghostmode(this.sock, from, msg, isOwner, this, args); break;
-                                        case 'nuke': await commands.nuke(this.sock, from, msg, isOwner); break;
-
-                                        // ===== ISLAMIC =====
-                                        case 'quran': await commands.quran(this.sock, from, msg, q); break;
-                                        case 'hadith': await commands.hadith(this.sock, from, msg, q); break;
-                                        case 'prayer': case 'salah': await commands.prayer(this.sock, from, msg, q); break;
-                                        case 'qibla': await commands.qibla(this.sock, from, msg, q); break;
-                                        case 'asmaulhusna': case 'asma': await commands.asmaulhusna(this.sock, from, msg, q); break;
-
-                                        // ===== SYSTEM INFO =====
-                                        case 'uptime': await commands.uptime(this.sock, from, msg); break;
-                                        case 'serverinfo': case 'si': await commands.serverinfo(this.sock, from, msg); break;
-                                        case 'speedtest': case 'speed': await commands.speedtest(this.sock, from, msg); break;
-                                        case 'device': case 'dev': await commands.device(this.sock, from, msg); break;
-                                        case 'runtime': case 'rt': await commands.runtime(this.sock, from, msg); break;
-
-                                        // ===== UTILITIES =====
-                                        case 'timer': await commands.timer(this.sock, from, msg, q); break;
-                                        case 'password': case 'pass': await commands.password(this.sock, from, msg, q); break;
-                                        case 'morse': await commands.morse(this.sock, from, msg, q); break;
-                                        case 'binary': case 'bin': await commands.binary(this.sock, from, msg, q); break;
-                                        case 'hex': await commands.hex(this.sock, from, msg, q); break;
-                                        case 'pastebin': case 'paste': await commands.pastebin(this.sock, from, msg, q); break;
-                                        case 'news': await commands.news(this.sock, from, msg, q); break;
-                                        case 'crypto': case 'coin': await commands.crypto(this.sock, from, msg, q); break;
-                                        case 'movie': case 'imdb': await commands.movie(this.sock, from, msg, q); break;
+                                        case 'song': await commands.song(this.sock, from, msg, args); break;
+                                        case 'video': await commands.video(this.sock, from, msg, args); break;
                                         case 'anime': await commands.anime(this.sock, from, msg, q); break;
                                         case 'manga': await commands.manga(this.sock, from, msg, q); break;
-                                        case 'waifu': case 'neko': case 'akiyama': case 'asuna': case 'ayuzawa': case 'boruto': case 'chitoge': case 'emilia': case 'erza': case 'gremory': case 'hestia': case 'inori': case 'isuzu': case 'itachi': case 'itori': case 'kaga': case 'kagura': case 'kakashi': case 'kaori': case 'keneki': case 'kotori': case 'kurumi': case 'lisa': case 'madara': case 'megumin': case 'mikasa': case 'mikey': case 'miku': case 'minato': case 'naruto': case 'neko2': case 'nekonime': case 'nezuko': case 'onepiece': case 'rize': case 'ryujin': case 'sakura': case 'sasuke': case 'shina': case 'shinka': case 'shinobu': case 'shinomiya': case 'shizuka': case 'tejina': case 'toukachan': case 'tsunade': case 'yotsuba': case 'yuki': case 'yumeko':
-                                        case 'cry': case 'kill': case 'hug': case 'pat': case 'lick': case 'kiss': case 'bite': case 'yeet': case 'bully': case 'bonk': case 'wink': case 'poke': case 'nom': case 'slap': case 'smile': case 'wave': case 'awoo': case 'blush': case 'smug': case 'glomp': case 'happy': case 'dance': case 'cringe': case 'cuddle': case 'highfive': case 'handhold': await commands.animemaker(this.sock, from, msg, commandName); break;
-                                        case 'lyrics': await commands.lyrics(this.sock, from, msg, q); break;
-                                        case 'remind': case 'reminder': await commands.remind(this.sock, from, msg, q); break;
-                                        case 'xvideos': await commands.xvideos(this.sock, from, msg, q); break;
-                                        case 'tagme': await commands.tagme(this.sock, from, msg); break;
-                                        case 'mention': await commands.mention(this.sock, from, msg, q); break;
-                                        case 'snipe': await commands.snipe(this.sock, from, msg); break;
-                                        case 'editmsg': await commands.editmsg(this.sock, from, msg, q); break;
-                                        case 'react': await commands.react(this.sock, from, msg, q); break;
-                                        case 'send': await commands.send(this.sock, from, msg, isOwner, q); break;
-                                        case 'forward': case 'fwd': await commands.forward(this.sock, from, msg, isOwner, q); break;
-                                        case 'clear': await commands.clear(this.sock, from, msg); break;
-                                        case 'save': await commands.save(this.sock, from, msg); break;
-                                        // backup and restore removed
-                                        case 'mycmd': case 'mycommands': await commands.mycmd(this.sock, from, msg); break;
+                                        case 'waifu': await commands.animemaker(this.sock, from, msg, 'waifu'); break;
+                                        case 'chatbot': await commands.chatbot(this.sock, from, msg, this, args); break;
+                                        // Other commands mapped in the commands object...
+                                        default:
+                                            if (commands[commandName]) {
+                                                if (typeof commands[commandName] === 'function') await commands[commandName](this.sock, from, msg, args, q, this);
+                                            }
+                                            break;
                                     }
-                                } catch (e) {
-                                    this.sendLog(`Command error (${commandName}): ` + e.message, 'error');
-                                }
+                                } catch (e) { console.error(e); }
                             })();
                         }
-                    } catch (e) {
-                        console.error('Message Processing Error:', e);
-                    }
+                    } catch (e) { console.error(e); }
                 }));
             });
 
@@ -1620,407 +765,124 @@ class BotSession {
                 }
 
                 if (connection === 'close') {
-                    const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
                     this.isConnected = false;
                     this.isInitializing = false;
-                    this.sendLog(`Connection closed. Reconnecting: ${shouldReconnect}`, 'warning');
                     this.sendConnectionStatus();
                     const statusCode = (lastDisconnect.error)?.output?.statusCode;
-
-                    if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-                        this.sendLog('Session expired or logged out. Clearing auth data...', 'error');
-                        try {
-                            if (fs.existsSync(this.authPath)) {
-                                const backupPath = `${this.authPath}_backup_${Date.now()}`;
-                                fs.moveSync(this.authPath, backupPath);
-                                this.sendLog(`Corrupted session backed up to ${backupPath}`, 'info');
-                            }
-                        } catch (e) {
-                            if (fs.existsSync(this.authPath)) fs.removeSync(this.authPath);
-                        }
-                        delete sessions[this.userId];
-                        this.sendConnectionStatus();
-                    } else {
-                        // Aggressive Reconnection for all other cases
-                        const retryDelay = statusCode === 515 ? 1000 : 5000;
-                        this.sendLog(`Connection closed (${statusCode || 'Unknown'}). Reconnecting in ${retryDelay/1000}s...`, 'warning');
-                        setTimeout(() => {
-                            if (!this.isConnected) this.initialize();
-                        }, retryDelay);
+                    if (statusCode !== DisconnectReason.loggedOut) {
+                        setTimeout(() => this.initialize(), 5000);
                     }
                 } else if (connection === 'open') {
                     this.isConnected = true;
                     this.isInitializing = false;
-                    this.sendLog('Connected successfully! \u{2705}', 'success');
                     this.sendConnectionStatus();
                     this.startActiveCheck();
-
-                    const botNumber = jidNormalizedUser(this.sock.user.id);
-                    const botNumberClean = botNumber.split('@')[0];
-                    this.phoneNumber = botNumberClean;
-
-                    if (!settings.connectedBots.includes(botNumberClean)) {
-                        settings.connectedBots.push(botNumberClean);
-                    }
-
-                    const botName = botData.userNames[this.userId] || (this.sock.user && this.sock.user.name) || this.userId;
-
-                    if (this.tgChatId && tgBot) {
-                        const successMsg = 
-                            `\u{25EC}\u{2501}\u{2501}\u{2501}\u{3008} *MYSTIC XMD V4 BETA* \u{3009}\u{2501}\u{2501}\u{2501}\u{25EC}\n\n` +
-                            `*\u{2705} CONNECTION SUCCESSFUL!* \n\n` +
-                            `Your WhatsApp number has been successfully linked.\n` +
-                            `You can now use all commands in your WhatsApp.\n\n` +
-                            `> © POWERED BY MYSTIC XMD V4 BETA v4.0`;
-                        await tgBot.sendMessage(this.tgChatId, successMsg, { parse_mode: 'Markdown' });
-                    }
-
-                    this.sendLog(`Bot ${botName} is online.`, 'success');
-
-                    setTimeout(async () => {
-                        try {
-                            await this.sock.query({
-                                tag: 'iq',
-                                attrs: { to: '@s.whatsapp.net', type: 'set', xmlns: 'status' },
-                                content: [{ tag: 'status', attrs: {}, content: Buffer.from("MYSTIC XMD V4 BETA v3.0 - 120+ Commands | Powered by MYSTIC XMD", 'utf-8') }]
-                            });
-                            this.sendLog("Bio updated successfully! \u{2705}", "success");
-                        } catch (e) {
-                            this.sendLog("Bio update failed: " + e.message, "error");
-                        }
-                    }, 5000);
-
-                    if (!this.lastConnectMessageTime || (Date.now() - this.lastConnectMessageTime > 60 * 60 * 1000)) {
-                        const welcomeText = `\u{25EC}\u{2501}\u{2501}\u{2501}\u{3008} *MYSTIC XMD V4 BETA* \u{3009}\u{2501}\u{2501}\u{2501}\u{25EC}\n\n` +
-                            `*\u{1F311} CONNECTED SUCCESSFULLY* \u{2705}\n\n` +
-                            `Your WhatsApp has been linked to the most powerful automation system.\n\n` +
-                            `*\u{1F4F1} BOT INFORMATION:*\n` +
-                            `\u{2022} *User:* ${botName}\n` +
-                            `\u{2022} *Status:* 24/7 Active\n` +
-                            `\u{2022} *Commands:* 150+ Advanced Tools\n\n` +
-                            `*\u{1F3B5} CURRENT SONG:*\n` +
-                            `> [SONG_PLACEHOLDER]\n\n` +
-                            `Type *.menu* to explore all features.\n\n` +
-                            `> © POWERED BY MYSTIC XMD V4 BETA v4.0`;
-
-                        await this.sock.sendMessage(botNumber, { 
-                            image: { url: settings.startimage },
-                            caption: welcomeText 
-                        });
-
-                        try {
-                            const channelLink = settings.whatsappChannel;
-                            if (channelLink) {
-                                const channelKey = channelLink.split('/channel/')[1];
-                                if (channelKey) {
-                                    const metadata = await this.sock.newsletterMetadata('invite', channelKey, 'GUEST');
-                                    if (metadata && metadata.id) {
-                                        await this.sock.newsletterFollow(metadata.id);
-                                        console.log(`\u{2705} Auto-followed channel: ${metadata.id}`);
-                                    }
-                                }
-                            }
-                        } catch (channelErr) {
-                            console.log('Channel follow error:', channelErr.message);
-                        }
-                        this.lastConnectMessageTime = Date.now();
-                    }
                 }
             });
-
         } catch (err) {
             this.isInitializing = false;
-            this.sendLog(`Initialization failed: ${err.message}. Retrying in 10s...`, 'error');
-            setTimeout(() => this.initialize(), 10000);
         }
     }
 }
 
-
-// =================== MENU GENERATOR ===================
-function generateMenuText(userName, session) {
-    const s = botData.statusSettings[session.userId] || {};
-    const mode = session.isPublic ? 'PUBLIC' : 'PRIVATE';
+function generateMenuText(pushName, session) {
+    const time = new Date().toLocaleTimeString();
+    const date = new Date().toLocaleDateString();
     const uptime = process.uptime();
     const hours = Math.floor(uptime / 3600);
     const minutes = Math.floor((uptime % 3600) / 60);
-    const seconds = Math.floor(uptime % 60);
-    const uptimeStr = `${hours}h ${minutes}m ${seconds}s`;
-    const dateStr = new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
-    return `╭━━━〔 MYSTIC XMD V2 〕━━━⬣
-┃ ✦ User: ${userName}
-┃ ✦ Bot: ${settings.botName}
-┃ ✦ Version: ${settings.version}
-┃ ✦ Owner: ${settings.ownerName || 'MYSTIC XMD'}
-┃ ✦ Mode: ${mode}
-┃ ✦ Prefix: ${session.globalPrefix || botData.globalPrefix || settings.prefix}
-┃ ✦ Uptime: ${uptimeStr}
-┃ ✦ Status: Active
-╰━━━━━━━━━━━━━━━━━━━━⬣
-
-*Menu Type:* ${botData.menuType || 'text'}
-
-➤ .allmenu
-➤ .ownermenu
-➤ .groupmenu
-➤ .aimenu
-➤ .downloadmenu
-➤ .toolsmenu
-➤ .funmenu
-➤ .gamemenu
-➤ .buypanel
-➤ .animemenu
-➤ .stickermenu
-➤ .imagemenu
-➤ .islamicmenu
-➤ .miscmenu
-➤ .bugmenu
-
-   © POWERED BY MYSTIC XMD`;
+    return `\n\u{25EC}\u{2501}\u{2501}\u{2501}\u{3008} *MYSTIC XMD V4 BETA* \u{3009}\u{2501}\u{2501}\u{2501}\u{25EC}\n\n*\u{1F464} USER:* ${pushName}\n*\u{1F552} TIME:* ${time}\n*\u{1F4C5} DATE:* ${date}\n*\u{23F3} UPTIME:* ${hours}h ${minutes}m\n*\u{1F4F1} MODE:* ${session.isPublic ? 'Public' : 'Private'}\n*\u{1F916} AI:* ${session.aiEnabled ? 'Active' : 'Inactive'}\n\n*\u{1F4DA} CATEGORIES:* ...\n\n> © POWERED BY MYSTIC XMD V4 BETA v4.0\n`;
 }
 
+// Telegram Bot Setup
+const tgToken = process.env.TELEGRAM_BOT_TOKEN || settings.tgBotToken;
+const tgBot = tgToken ? new TelegramBot(tgToken, { polling: true }) : null;
 
-// =================== SOCKET.IO ===================
-io.on('connection', (socket) => {
-    // Admin auth
-    socket.on('admin-auth', (password) => {
-        const adminPass = process.env.ADMIN_PASSWORD || '305060';
-        if (password === adminPass) {
-            socket.authenticated = true;
-            socket.emit('admin-auth-success');
-        } else {
-            socket.emit('admin-auth-fail');
-        }
+if (tgBot) {
+    tgBot.on('polling_error', (error) => {
+        console.log('Telegram polling error:', error.message);
+        if (error.message && (error.message.includes('409') || error.message.includes('401'))) tgBot.stopPolling();
     });
 
-    socket.on('set-user', (userId) => {
-        userSockets[userId] = socket.id;
+    tgBot.onText(/\/start/, async (msg) => {
+        const chatId = msg.chat.id;
+        const welcome = `Welcome to *MYSTIC XMD V4 BETA* Telegram.\n\nSend your WhatsApp number to pair.`;
+        try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: welcome, parse_mode: 'Markdown' }); } catch (e) { await tgBot.sendMessage(chatId, welcome, { parse_mode: 'Markdown' }); }
+    });
+
+    tgBot.on('message', async (msg) => {
+        const chatId = msg.chat.id;
+        const text = msg.text;
+        const pushName = msg.from?.first_name || 'User';
+        if (!text || text.startsWith('/')) return;
+
+        if (/^\d+$/.test(text)) {
+            const userId = chatId.toString();
+            if (!sessions[userId]) sessions[userId] = new BotSession(userId);
+            sessions[userId].tgChatId = chatId;
+            await sessions[userId].initialize(text);
+            return;
+        }
+
+        const userId = `tg_${chatId}`;
         if (!sessions[userId]) sessions[userId] = new BotSession(userId);
-        sessions[userId].sendConnectionStatus();
-    });
-
-    // Pair request - still available via web for web users
-    socket.on('pair-request', async ({ userId, number }) => {
-        if (sessions[userId]) {
-            if (!botData.statusSettings[userId]) {
-                botData.statusSettings[userId] = { 
-                    autoStatus: false,
-                    autoSeen: false,
-                    autoLike: false,
-                    autoDownload: false,
-                    isPublic: true
-                };
-                saveBotData();
-            }
-            sessions[userId].tgChatId = null;
-            await sessions[userId].initialize(number);
-        } else {
-            sessions[userId] = new BotSession(userId);
-            if (!botData.statusSettings[userId]) {
-                botData.statusSettings[userId] = { 
-                    autoStatus: false,
-                    autoSeen: false,
-                    autoLike: false,
-                    autoDownload: false,
-                    isPublic: true
-                };
-                saveBotData();
-            }
-            sessions[userId].tgChatId = null;
-            await sessions[userId].initialize(number);
-        }
-    });
-
-    // BROADCAST MESSAGE - Send to all connected users
-    socket.on('broadcast', async ({ message }) => {
-        if (!socket.authenticated) return;
+        const session = sessions[userId];
+        const prefix = botData.globalPrefix || settings.prefix || '.';
         
-        const activeBots = getAllActiveSockets();
-        let totalSent = 0;
-        let totalChats = 0;
-
-        for (const bot of activeBots) {
-            try {
-                // Get all chats for this bot
-                const allChats = Object.keys(bot.sock.chats || {});
-                const personalChats = allChats.filter(jid => jid.endsWith('@s.whatsapp.net') || jid.endsWith('@g.us'));
-                
-                for (const jid of personalChats) {
-                    try {
-                        await bot.sock.sendMessage(jid, { 
-                            text: `\u{1F4E2} *BROADCAST MESSAGE* \u{1F4E2}\n\n${message}\n\n_From: MYSTIC XMD V4 BETA Bot Admin_` 
-                        });
-                        totalSent++;
-                    } catch (e) {}
+        if (text.startsWith(prefix)) {
+            const args = text.slice(prefix.length).trim().split(/ +/);
+            const commandName = args.shift().toLowerCase();
+            const q = args.join(' ');
+            const tgSock = {
+                sendMessage: async (jid, content) => {
+                    if (content.text) return await tgBot.sendMessage(chatId, content.text);
+                    if (content.image) return await tgBot.sendPhoto(chatId, content.image.url || content.image, { caption: content.caption });
+                    if (content.audio) return await tgBot.sendAudio(chatId, content.audio.url || content.audio);
+                    if (content.video) return await tgBot.sendVideo(chatId, content.video.url || content.video, { caption: content.caption });
                 }
-                totalChats += personalChats.length;
-            } catch (e) {
-                console.error('Broadcast error:', e.message);
-            }
+            };
+            try {
+                if (commandName === 'anime') await commands.anime(tgSock, chatId, msg, q);
+                else if (commandName === 'song') await commands.song(tgSock, chatId, msg, args);
+                else if (commandName === 'waifu') await commands.animemaker(tgSock, chatId, msg, 'waifu');
+            } catch (e) { console.error(e); }
+            return;
         }
 
-        // Save to history
-        botData.broadcastHistory.unshift({
-            message,
-            timestamp: new Date().toISOString(),
-            totalSent,
-            totalBots: activeBots.length
-        });
-        if (botData.broadcastHistory.length > 50) botData.broadcastHistory.pop();
-        saveBotData();
-
-        socket.emit('broadcast-result', { totalSent, totalBots: activeBots.length, totalChats });
-    });
-
-    // STOP BOT - Disconnect a specific bot
-    socket.on('stop-bot', async ({ sessionId }) => {
-        if (!socket.authenticated) return;
-        
-        if (sessions[sessionId] && sessions[sessionId].sock) {
+        if (msg.chat.type === 'private' || text.toLowerCase().includes('akari')) {
             try {
-                await sessions[sessionId].sock.logout();
-                sessions[sessionId].isConnected = false;
-                delete sessions[sessionId];
-                socket.emit('bot-stopped', { sessionId, success: true });
-            } catch (e) {
-                socket.emit('bot-stopped', { sessionId, success: false, error: e.message });
-            }
-        }
-    });
-
-    // STOP ALL BOTS
-    socket.on('stop-all-bots', async () => {
-        if (!socket.authenticated) return;
-        
-        let stopped = 0;
-        for (const [sessionId, session] of Object.entries(sessions)) {
-            try {
-                if (session.sock) {
-                    await session.sock.logout();
-                    session.isConnected = false;
-                    stopped++;
-                }
+                await tgBot.sendChatAction(chatId, 'typing');
+                const aiRes = await session.getAIResponse(chatId.toString(), text, pushName);
+                if (aiRes.type === 'image') await tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption });
+                else if (aiRes.type === 'voice') await tgBot.sendAudio(chatId, aiRes.url);
+                else await tgBot.sendMessage(chatId, aiRes.content);
             } catch (e) {}
         }
-        socket.emit('all-bots-stopped', { stopped });
     });
+}
 
-    // GET CONNECTED BOTS LIST
-    socket.on('get-bots-list', () => {
-        const bots = [];
-        for (const [sessionId, session] of Object.entries(sessions)) {
-            if (session.sock && session.sock.user) {
-                bots.push({
-                    sessionId,
-                    phoneNumber: session.phoneNumber,
-                    isConnected: session.isConnected,
-                    userName: botData.userNames[sessionId] || 'Unknown'
-                });
-            }
+// Web Server Setup
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, { cors: { origin: "*" } });
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname)));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+async function loadExistingSessions() {
+    try {
+        const authDirs = await fs.readdir(AUTH_DIR);
+        for (const userId of authDirs) {
+            const session = new BotSession(userId);
+            sessions[userId] = session;
+            session.initialize().catch(e => {});
         }
-        socket.emit('bots-list', bots);
-    });
+    } catch (e) {}
+}
 
-    // GET BROADCAST HISTORY
-    socket.on('get-broadcast-history', () => {
-        if (!socket.authenticated) return;
-        socket.emit('broadcast-history', botData.broadcastHistory || []);
-    });
-
-    // ADMIN ACTIONS
-    socket.on('get-users-list', () => {
-        if (!socket.authenticated) return;
-        socket.emit('users-list', botData.users || {});
-    });
-
-    socket.on('ban-user', ({ userId, ban }) => {
-        if (!socket.authenticated) return;
-        if (!botData.users) botData.users = {};
-        if (botData.users[userId]) {
-            botData.users[userId].banned = ban;
-            saveBotData();
-            socket.emit('admin-action-success', { message: `User ${userId} ${ban ? 'banned' : 'unbanned'}` });
-        }
-    });
-
-    socket.on('add-balance', ({ userId, amount }) => {
-        if (!socket.authenticated) return;
-        if (!botData.users) botData.users = {};
-        if (botData.users[userId]) {
-            const addAmt = parseInt(amount);
-            if (isNaN(addAmt)) return socket.emit('admin-action-success', { message: 'Invalid amount' });
-            
-            botData.users[userId].coins = (botData.users[userId].coins || 0) + addAmt;
-            saveBotData();
-            socket.emit('admin-action-success', { message: `Added ${addAmt} balance to ${userId}` });
-        }
-    });
-
-    socket.on('toggle-maintenance', ({ enabled, reason }) => {
-        if (!socket.authenticated) return;
-        botData.maintenance = enabled;
-        botData.maintenanceReason = reason || "";
-        saveBotData();
-        socket.emit('admin-action-success', { message: `Maintenance ${enabled ? 'enabled' : 'disabled'}` });
-    });
-
-    socket.on('get-maintenance-status', () => {
-        socket.emit('maintenance-status', { enabled: botData.maintenance || false, reason: botData.maintenanceReason || "" });
-    });
-
-    // PTERODACTYL SERVER MANAGEMENT
-    socket.on('get-ptero-servers', async () => {
-        if (!socket.authenticated) return;
-        try {
-            const casino = require('./commands/casino');
-            // We need a listServers function in casino.js
-            if (casino.listServers) {
-                const servers = await casino.listServers();
-                socket.emit('ptero-servers', servers);
-            } else {
-                socket.emit('ptero-servers', { ok: false, msg: 'Server listing not implemented in casino.js' });
-            }
-        } catch (e) {
-            socket.emit('ptero-servers', { ok: false, msg: e.message });
-        }
-    });
-
-    socket.on('disconnect', () => {
-        for (const [userId, socketId] of Object.entries(userSockets)) {
-            if (socketId === socket.id) {
-                delete userSockets[userId];
-                break;
-            }
-        }
-    });
-});
-
-// Global error handlers to prevent crashes
-process.on('uncaughtException', (err) => {
-    console.error('CRITICAL: Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-// Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', async () => {
-    console.log(`\u{1F311} MYSTIC XMD V4 BETA v${settings.version} Server running on port ${PORT}`);
-    console.log(`\u{1F4E1} Total commands loaded: 120+`);
-    console.log(`\u{1F310} Web Dashboard: http://localhost:${PORT}`);
-    
-    // Railway specific: ensure data and tmp directories exist
-    try {
-        await fs.ensureDir('./data');
-        await fs.ensureDir('./tmp');
-        await fs.ensureDir('./temp');
-        await fs.ensureDir('./auth_info');
-    } catch (e) {
-        console.error('Error creating directories:', e.message);
-    }
-    
+    console.log(`Server running on port ${PORT}`);
     await loadExistingSessions();
 });
