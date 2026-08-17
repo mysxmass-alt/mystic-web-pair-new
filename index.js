@@ -941,6 +941,12 @@ io.on('connection', (socket) => {
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/health', (req, res) => res.status(200).json({
+    status: 'ok',
+    service: 'mystic-xmd',
+    uptime: Math.floor(process.uptime()),
+    telegram: Boolean(tgBot)
+}));
 
 async function loadExistingSessions() {
     try {
@@ -953,7 +959,7 @@ async function loadExistingSessions() {
     } catch (e) {}
 }
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number.parseInt(process.env.PORT, 10) || 3000;
 server.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server running on port ${PORT}`);
     await loadExistingSessions();
