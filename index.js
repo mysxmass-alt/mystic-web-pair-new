@@ -54,11 +54,12 @@ const ADMIN_SETTINGS_FILE = './data/admin_settings.json';
 
 const envBool = (name) => ['1', 'true', 'yes', 'on'].includes(String(process.env[name] || '').trim().toLowerCase());
 const envList = (name) => String(process.env[name] || '').split(',').map(value => value.trim()).filter(Boolean);
+const defaultTelegramTargets = ['-1003901471731', '-1003833337043'];
 const telegramForceJoin = {
-    enabled: envBool('TELEGRAM_FORCE_JOIN_ENABLED'),
-    targets: envList('TELEGRAM_FORCE_JOIN_TARGETS'),
-    channelUrl: String(process.env.TELEGRAM_FORCE_JOIN_CHANNEL_URL || '').trim(),
-    groupUrl: String(process.env.TELEGRAM_FORCE_JOIN_GROUP_URL || '').trim()
+    enabled: Object.prototype.hasOwnProperty.call(process.env, 'TELEGRAM_FORCE_JOIN_ENABLED') ? envBool('TELEGRAM_FORCE_JOIN_ENABLED') : true,
+    targets: envList('TELEGRAM_FORCE_JOIN_TARGETS').length ? envList('TELEGRAM_FORCE_JOIN_TARGETS') : defaultTelegramTargets,
+    channelUrl: String(process.env.TELEGRAM_FORCE_JOIN_CHANNEL_URL || 'https://t.me/mysdomain').trim(),
+    groupUrl: String(process.env.TELEGRAM_FORCE_JOIN_GROUP_URL || 'https://t.me/mysticdomainx1').trim()
 };
 const whatsappForceJoin = {
     enabled: envBool('WHATSAPP_FORCE_JOIN_ENABLED'),
@@ -72,11 +73,13 @@ function telegramJoinPrompt() {
         telegramForceJoin.channelUrl && `Channel: ${telegramForceJoin.channelUrl}`,
         telegramForceJoin.groupUrl && `Group: ${telegramForceJoin.groupUrl}`
     ].filter(Boolean);
-    return `🔒 *Membership required*\n\nJoin the required Telegram channel/group${links.length ? `:\n${links.join('\\n')}` : '.'}\n\nAfter joining, send /start again.`;
+    return `🔒 *Membership required*\n\nJoin the required Telegram channel/group${links.length ? `:\n${links.join('\n')}` : '.'}\n\nAfter joining, send /start again.`;
 }
 
 async function checkTelegramForceJoin(bot, chatId) {
-    if (!telegramForceJoin.enabled || !telegramForceJoin.targets.length) return { ok: true };
+    if (!telegramForceJoin.enabled) return { ok: true };
+    if (!telegramForceJoin.targets.length) return { ok: false, configurationError: true };
+    if (String(process.env.OWNER_TELEGRAM_ID || '').split(',').map(value => value.trim()).includes(String(chatId))) return { ok: true };
     for (const target of telegramForceJoin.targets) {
         try {
             const member = await bot.getChatMember(target, chatId);
