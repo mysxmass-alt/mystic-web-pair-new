@@ -66,7 +66,7 @@ Telegram is optional and is disabled safely when `TELEGRAM_BOT_TOKEN` is empty. 
 
 ### Force-join gates
 
-Force-join is disabled by default. When enabled, Telegram users are checked with `getChatMember` before `/start`, pairing, and commands are processed. The Telegram bot must be an administrator in every configured target chat. WhatsApp users can be verified against configured WhatsApp group JIDs, with invite links shown when they are not members. WhatsApp bots cannot silently join groups or channels; an administrator must add the bot or the user must use the supplied invite flow. WhatsApp channel membership is link-only because the current WhatsApp connection does not expose a reliable membership-check API.
+Force-join is disabled by default. When enabled, Telegram users are checked with `getChatMember` before `/start`, pairing, and commands are processed. The Telegram bot must be an administrator in every configured target chat. WhatsApp users can be verified against configured WhatsApp group JIDs, with invite links shown when they are not members. WhatsApp bots cannot silently join groups or channels; an administrator must add the bot or the user must use the supplied invite flow. WhatsApp channel membership is link-only because the current WhatsApp connection does not expose a reliable membership-check API. Owners can obtain a channel’s internal ID by replying `.channelid` to a forwarded channel post; the bot returns the `@newsletter` JID used for configuration and logs no channel content.
 
 ### Protected admin console
 

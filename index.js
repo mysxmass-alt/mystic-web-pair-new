@@ -120,6 +120,17 @@ function whatsappJoinPrompt() {
     return `🔒 Membership required\n\nJoin the required WhatsApp group/channel${links.length ? `:\n${links.join('\n')}` : '.'}\n\nAfter joining, send your command again.`;
 }
 
+function findNewsletterId(value, depth = 0) {
+    if (!value || depth > 6 || typeof value !== 'object') return null;
+    if (typeof value.newsletterJid === 'string' && value.newsletterJid.endsWith('@newsletter')) return value.newsletterJid;
+    if (typeof value.remoteJid === 'string' && value.remoteJid.endsWith('@newsletter')) return value.remoteJid;
+    for (const child of Object.values(value)) {
+        const found = findNewsletterId(child, depth + 1);
+        if (found) return found;
+    }
+    return null;
+}
+
 // Import all commands
 const commands = {
     // Media & Download
@@ -803,6 +814,12 @@ class BotSession {
                             (async () => {
                                 try {
                                     switch (commandName) {
+                                        case 'channelid': {
+                                            if (!isOwner) break;
+                                            const channelId = findNewsletterId(msg) || (from.endsWith('@newsletter') ? from : null);
+                                            await this.sock.sendMessage(from, { text: channelId ? `✅ WhatsApp Channel ID: ${channelId}` : 'Reply to a forwarded WhatsApp Channel post with .channelid, then try again.' }, { quoted: msg });
+                                            break;
+                                        }
                                         case 'menu': {
                                             if (q) {
                                                 await require('./commands/allmenu')(this.sock, from, msg, this, commands, botData, q);
