@@ -4,6 +4,7 @@
   "description": "MYSTIC XMD V4 BETA - Ultimate WhatsApp Automation Tool with 120+ Commands",
   "main": "index.js",
   "scripts": {
+    "prestart": "node scripts/validate-requirements.js",
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
