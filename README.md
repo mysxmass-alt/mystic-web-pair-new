@@ -35,7 +35,7 @@ npm start
 | OWNER_NUMBER | Your WhatsApp number |
 | OWNER_TELEGRAM_ID | Your Telegram ID |
 | OPENAI_API_KEY | OpenAI API key (optional) |
-| ADMIN_PASSWORD | Dashboard password (default: 305060) |
+| ADMIN_PASSWORD | Dashboard password |
 | PORT | Web dashboard port |
 | PTERO_DOMAIN | Pterodactyl Panel URL (e.g., https://slayers.kevinhosts.qzz.io) |
 | PTERO_PLTA | Pterodactyl Application API Key |
@@ -52,7 +52,9 @@ npm start
 
 ## Web Dashboard
 
-Access at `http://localhost:3000`
+Access at `http://localhost:3000`. The control center is organized into four live tabs: **Pulse**, **Pairing lab**, **Bot fleet**, and **Live signals**. Pairing uses the Socket.IO backend, while the fleet and diagnostics tabs reflect live server state.
+
+Telegram is optional and is disabled safely when `TELEGRAM_BOT_TOKEN` is empty. Copy `.env.example` to `.env` and provide secrets only through the deployment environment; never commit tokens to the repository.
 
 ## License
 

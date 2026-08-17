@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -530,6 +531,7 @@ class BotSession {
                 const cleanedNumber = pairingNumber.replace(/[^0-9]/g, '');
                 if (!cleanedNumber) {
                     this.sendLog("❌ Invalid pairing number provided.", "error");
+                    this.isInitializing = false;
                     return;
                 }
                 
@@ -768,7 +770,7 @@ class BotSession {
                     this.isConnected = false;
                     this.isInitializing = false;
                     this.sendConnectionStatus();
-                    const statusCode = (lastDisconnect.error)?.output?.statusCode;
+                    const statusCode = lastDisconnect?.error?.output?.statusCode;
                     if (statusCode !== DisconnectReason.loggedOut) {
                         setTimeout(() => this.initialize(), 5000);
                     }
@@ -781,6 +783,8 @@ class BotSession {
             });
         } catch (err) {
             this.isInitializing = false;
+            this.sendLog(`Initialization failed: ${err.message}`, 'error');
+            throw err;
         }
     }
 }
@@ -795,14 +799,29 @@ function generateMenuText(pushName, session) {
 }
 
 // Telegram Bot Setup
-const tgToken = process.env.TELEGRAM_BOT_TOKEN || settings.tgBotToken;
-const tgBot = tgToken ? new TelegramBot(tgToken, { polling: true }) : null;
+const tgToken = String(process.env.TELEGRAM_BOT_TOKEN || settings.tgBotToken || '').trim();
+let tgBot = null;
+if (tgToken) {
+    try {
+        tgBot = new TelegramBot(tgToken, { polling: { autoStart: true, params: { timeout: 30 } } });
+    } catch (error) {
+        console.error('Telegram disabled: unable to initialize bot:', error.message);
+    }
+} else {
+    console.log('Telegram integration disabled: TELEGRAM_BOT_TOKEN is not configured.');
+}
 
 if (tgBot) {
     tgBot.on('polling_error', (error) => {
-        console.log('Telegram polling error:', error.message);
-        if (error.message && (error.message.includes('409') || error.message.includes('401'))) tgBot.stopPolling();
+        const message = error?.message || 'unknown polling error';
+        console.error('Telegram polling error:', message);
+        if (/\b409\b|\b401\b|\b403\b/.test(message)) {
+            tgBot.stopPolling().catch(() => {});
+            console.error('Telegram polling stopped. Check the token and make sure no second bot instance is running.');
+        }
     });
+
+    tgBot.on('error', (error) => console.error('Telegram bot error:', error?.message || error));
 
     tgBot.onText(/\/start/, async (msg) => {
         const chatId = msg.chat.id;
@@ -865,6 +884,59 @@ if (tgBot) {
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: "*" } });
+
+const safeUserId = (value) => String(value || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+const dashboardStats = () => ({
+    activeSockets: Object.values(sessions).filter(session => session.isConnected).length,
+    totalUsers: Object.keys(sessions).length,
+    telegramEnabled: Boolean(tgBot),
+    uptime: Math.floor(process.uptime())
+});
+const botsList = () => Object.values(sessions).map(session => ({
+    sessionId: session.userId,
+    userName: session.sock?.user?.name || session.userId,
+    phoneNumber: session.phoneNumber || session.sock?.user?.id?.split(':')[0] || 'Pending pairing',
+    isConnected: Boolean(session.isConnected)
+}));
+
+io.on('connection', (socket) => {
+    let currentUserId = null;
+    const emitStats = () => socket.emit('stats', dashboardStats());
+    emitStats();
+
+    socket.on('set-user', (requestedUserId) => {
+        const userId = safeUserId(requestedUserId);
+        if (!userId) return socket.emit('pair-error', 'Unable to create a safe session identifier.');
+        currentUserId = userId;
+        userSockets[userId] = socket.id;
+        if (!sessions[userId]) sessions[userId] = new BotSession(userId);
+        sessions[userId].sendConnectionStatus();
+        emitStats();
+    });
+
+    socket.on('pair-request', async ({ userId, number } = {}) => {
+        const requestedId = safeUserId(userId || currentUserId);
+        if (!requestedId) return socket.emit('pair-error', 'Start a new pairing session first.');
+        currentUserId = requestedId;
+        userSockets[requestedId] = socket.id;
+        const session = sessions[requestedId] || (sessions[requestedId] = new BotSession(requestedId));
+        try {
+            await session.initialize(number ? String(number).replace(/[^0-9]/g, '') : null);
+            emitStats();
+        } catch (error) {
+            session.isInitializing = false;
+            session.sendLog(`Pairing failed: ${error.message}`, 'error');
+            socket.emit('pair-error', error.message || 'Pairing failed.');
+        }
+    });
+
+    socket.on('get-bots-list', () => socket.emit('bots-list', botsList()));
+    socket.on('get-stats', emitStats);
+
+    socket.on('disconnect', () => {
+        if (currentUserId && userSockets[currentUserId] === socket.id) delete userSockets[currentUserId];
+    });
+});
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
