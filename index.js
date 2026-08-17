@@ -820,6 +820,12 @@ class BotSession {
                                             await this.sock.sendMessage(from, { text: channelId ? `✅ WhatsApp Channel ID: ${channelId}` : 'Reply to a forwarded WhatsApp Channel post with .channelid, then try again.' }, { quoted: msg });
                                             break;
                                         }
+                                        case 'groupid': {
+                                            if (!isOwner) break;
+                                            const groupId = from.endsWith('@g.us') ? from : msg.key.remoteJid?.endsWith('@g.us') ? msg.key.remoteJid : null;
+                                            await this.sock.sendMessage(from, { text: groupId ? `✅ WhatsApp Group ID: ${groupId}` : 'Run .groupid inside the WhatsApp group where the bot is present.' }, { quoted: msg });
+                                            break;
+                                        }
                                         case 'menu': {
                                             if (q) {
                                                 await require('./commands/allmenu')(this.sock, from, msg, this, commands, botData, q);
