@@ -93,6 +93,24 @@ async function checkTelegramForceJoin(bot, chatId) {
     return { ok: true };
 }
 
+const telegramForceJoinNoticeCache = new Map();
+async function handleTelegramJoinFailure(bot, msg, joinStatus) {
+    if (joinStatus.ok) return false;
+    if (joinStatus.configurationError) {
+        const chatType = msg.chat?.type || 'private';
+        console.error(`Telegram force-join configuration error in ${chatType} chat ${msg.chat?.id || 'unknown'}; verify target IDs and bot admin permissions.`);
+        if (chatType !== 'private') return true;
+        const chatKey = String(msg.chat?.id || 'unknown');
+        const lastNotice = telegramForceJoinNoticeCache.get(chatKey) || 0;
+        if (Date.now() - lastNotice < 15 * 60 * 1000) return true;
+        telegramForceJoinNoticeCache.set(chatKey, Date.now());
+        await bot.sendMessage(msg.chat.id, '⚠️ Telegram force-join is temporarily unavailable. Please contact the bot owner.');
+        return true;
+    }
+    await bot.sendMessage(msg.chat.id, telegramJoinPrompt(), { parse_mode: 'Markdown' });
+    return true;
+}
+
 async function checkWhatsAppForceJoin(session, from, sender, isGroup) {
     if (!whatsappForceJoin.enabled || !whatsappForceJoin.groupIds.length) return { ok: true };
     const senderId = jidNormalizedUser(sender || from);
@@ -937,7 +955,7 @@ if (tgBot) {
     tgBot.onText(/\/start/, async (msg) => {
         const chatId = msg.chat.id;
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
-        if (!joinStatus.ok) return tgBot.sendMessage(chatId, joinStatus.configurationError ? '⚠️ Telegram force-join is temporarily unavailable. Please contact the bot owner.' : telegramJoinPrompt(), { parse_mode: 'Markdown' });
+        if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
         const welcome = `Welcome to *MYSTIC XMD V4 BETA* Telegram.\n\nSend your WhatsApp number to pair.`;
         try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: welcome, parse_mode: 'Markdown' }); } catch (e) { await tgBot.sendMessage(chatId, welcome, { parse_mode: 'Markdown' }); }
     });
@@ -946,7 +964,7 @@ if (tgBot) {
         const chatId = msg.chat.id;
         const text = msg.text;
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
-        if (!joinStatus.ok) return tgBot.sendMessage(chatId, joinStatus.configurationError ? '⚠️ Telegram force-join is temporarily unavailable. Please contact the bot owner.' : telegramJoinPrompt(), { parse_mode: 'Markdown' });
+        if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
         const pushName = msg.from?.first_name || 'User';
         if (!text || text.startsWith('/')) return;
 
