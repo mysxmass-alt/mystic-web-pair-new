@@ -11,6 +11,7 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLat
 const P = require('pino');
 const { OpenAI } = require('openai');
 const os = require('os');
+const crypto = require('crypto');
 
 // Global Data Structures
 const AUTH_DIR = './auth_info';
@@ -46,7 +47,10 @@ function saveBotData() {
 
 const sessions = {}; 
 const userSockets = {}; 
-const messageLogs = {}; 
+const messageLogs = {};
+const adminSessions = new Map();
+const adminEvents = [];
+const ADMIN_SETTINGS_FILE = './data/admin_settings.json';
 
 // Import all commands
 const commands = {
@@ -938,9 +942,114 @@ io.on('connection', (socket) => {
     });
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname)));
+
+function readAdminSettings() {
+    try {
+        return fs.existsSync(ADMIN_SETTINGS_FILE) ? fs.readJsonSync(ADMIN_SETTINGS_FILE) : {};
+    } catch (error) {
+        return {};
+    }
+}
+function writeAdminSettings(next) {
+    const current = readAdminSettings();
+    const safe = {
+        domain: String(next.domain ?? current.domain ?? settings.pteroDomain ?? '').trim().replace(/\/$/, ''),
+        egg: String(next.egg ?? current.egg ?? settings.pteroEgg ?? '').replace(/[^0-9]/g, '').slice(0, 12),
+        location: String(next.location ?? current.location ?? settings.pteroLocation ?? '').replace(/[^0-9]/g, '').slice(0, 12)
+    };
+    fs.writeJsonSync(ADMIN_SETTINGS_FILE, safe, { spaces: 2 });
+    settings.pteroDomain = safe.domain;
+    settings.pteroEgg = safe.egg;
+    settings.pteroLocation = safe.location;
+    return safe;
+}
+function adminEvent(message, level = 'info') {
+    adminEvents.push({ time: new Date().toLocaleTimeString(), message: String(message), level });
+    if (adminEvents.length > 100) adminEvents.shift();
+}
+function adminToken(req) {
+    const match = String(req.headers.cookie || '').match(/(?:^|; )admin_token=([^;]+)/);
+    return match ? match[1] : '';
+}
+function requireAdmin(req, res, next) {
+    const expires = adminSessions.get(adminToken(req));
+    if (!expires || expires < Date.now()) {
+        adminSessions.delete(adminToken(req));
+        return res.status(401).json({ error: 'Admin session expired. Unlock the console again.' });
+    }
+    next();
+}
+function adminUsers() {
+    return Object.entries(botData.users || {}).map(([id, user]) => ({
+        id,
+        username: user.username || user.name || '',
+        coins: Number(user.coins || 0),
+        banned: Boolean(user.banned),
+        lastSeen: user.lastSeen || null
+    })).sort((a, b) => a.id.localeCompare(b.id));
+}
+app.post('/api/admin/login', (req, res) => {
+    const configured = String(process.env.ADMIN_PASSWORD || '').trim();
+    if (!configured) return res.status(503).json({ error: 'Admin console is disabled. Set ADMIN_PASSWORD on the server.' });
+    const supplied = String(req.body?.password || '');
+    const expected = Buffer.from(configured);
+    const received = Buffer.from(supplied);
+    if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) {
+        adminEvent('Rejected admin login attempt', 'warning');
+        return res.status(401).json({ error: 'Incorrect admin password.' });
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    adminSessions.set(token, Date.now() + 8 * 60 * 60 * 1000);
+    adminEvent('Admin console unlocked', 'success');
+    res.setHeader('Set-Cookie', `admin_token=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    res.json({ ok: true });
+});
+app.get('/api/admin/session', requireAdmin, (req, res) => res.json({ ok: true }));
+app.post('/api/admin/logout', (req, res) => {
+    adminSessions.delete(adminToken(req));
+    res.setHeader('Set-Cookie', 'admin_token=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+    res.json({ ok: true });
+});
+app.get('/api/admin/overview', requireAdmin, (req, res) => {
+    const users = adminUsers();
+    res.json({ users: { total: users.length, banned: users.filter(user => user.banned).length }, activeSockets: Object.values(sessions).filter(session => session.isConnected).length, uptime: Math.floor(process.uptime()), telegram: Boolean(tgBot), pterodactyl: { ready: Boolean(settings.pteroDomain && settings.pteroPlta) } });
+});
+app.get('/api/admin/users', requireAdmin, (req, res) => res.json({ users: adminUsers() }));
+app.post('/api/admin/users/:id/ban', requireAdmin, (req, res) => {
+    const id = String(req.params.id || '');
+    if (!botData.users || !botData.users[id]) return res.status(404).json({ error: 'User not found.' });
+    botData.users[id].banned = Boolean(req.body?.banned);
+    saveBotData();
+    adminEvent(`${botData.users[id].banned ? 'Banned' : 'Unbanned'} user ${id}`, botData.users[id].banned ? 'warning' : 'success');
+    res.json({ ok: true, user: adminUsers().find(user => user.id === id) });
+});
+app.post('/api/admin/users/:id/credits', requireAdmin, (req, res) => {
+    const id = String(req.params.id || '');
+    if (!botData.users || !botData.users[id]) return res.status(404).json({ error: 'User not found.' });
+    const amount = Number(req.body?.amount);
+    if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 1000000000) return res.status(400).json({ error: 'Credit amount must be a non-zero finite number.' });
+    botData.users[id].coins = Number(botData.users[id].coins || 0) + amount;
+    saveBotData();
+    adminEvent(`Adjusted credits for ${id} by ${amount}`, amount > 0 ? 'success' : 'warning');
+    res.json({ ok: true, user: adminUsers().find(user => user.id === id) });
+});
+app.get('/api/admin/pterodactyl', requireAdmin, (req, res) => {
+    const panel = { ...readAdminSettings() };
+    if (!panel.domain) panel.domain = settings.pteroDomain || '';
+    if (!panel.egg) panel.egg = settings.pteroEgg || '';
+    if (!panel.location) panel.location = settings.pteroLocation || '';
+    res.json({ ready: Boolean(settings.pteroDomain && settings.pteroPlta), settings: panel });
+});
+app.post('/api/admin/pterodactyl', requireAdmin, (req, res) => {
+    const panel = writeAdminSettings(req.body || {});
+    adminEvent('Updated Pterodactyl panel metadata', 'success');
+    res.json({ ok: true, settings: panel, ready: Boolean(settings.pteroDomain && settings.pteroPlta) });
+});
+app.get('/api/admin/runtime', requireAdmin, (req, res) => res.json({ logs: adminEvents.slice(-100).reverse(), bots: Object.values(sessions).map(session => ({ sessionId: session.userId, isConnected: Boolean(session.isConnected) })) }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/health', (req, res) => res.status(200).json({
     status: 'ok',
     service: 'mystic-xmd',

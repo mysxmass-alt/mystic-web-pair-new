@@ -35,7 +35,7 @@ npm start
 | OWNER_NUMBER | Your WhatsApp number |
 | OWNER_TELEGRAM_ID | Your Telegram ID |
 | OPENAI_API_KEY | OpenAI API key (optional) |
-| ADMIN_PASSWORD | Dashboard password |
+| ADMIN_PASSWORD | Strong server-side password for `/admin` (never commit the real value) |
 | PORT | Web dashboard port |
 | PTERO_DOMAIN | Pterodactyl Panel URL (e.g., https://slayers.kevinhosts.qzz.io) |
 | PTERO_PLTA | Pterodactyl Application API Key |
@@ -55,6 +55,12 @@ npm start
 Access at `http://localhost:3000`. The control center is organized into four live tabs: **Pulse**, **Pairing lab**, **Bot fleet**, and **Live signals**. Pairing uses the Socket.IO backend, while the fleet and diagnostics tabs reflect live server state.
 
 Telegram is optional and is disabled safely when `TELEGRAM_BOT_TOKEN` is empty. Copy `.env.example` to `.env` and provide secrets only through the deployment environment; never commit tokens to the repository.
+
+### Protected admin console
+
+Open `/admin` to access the protected administration surface. It provides an overview of tracked users, banned users, active sessions, Telegram readiness, and Pterodactyl readiness. The **Users & credits** tab supports ban/unban and credit adjustments for users already present in the bot data store. The **Pterodactyl** tab stores only safe panel metadata; API keys remain environment-only. The **Runtime** tab exposes protected admin events and active bot sessions.
+
+The admin console uses an HTTP-only server-side session cookie and is disabled until `ADMIN_PASSWORD` is configured. Use a long, unique password in Railway or the deployment environment; do not use a password that has been pasted into chat or committed to Git.
 
 ## License
 
