@@ -65,7 +65,8 @@ const whatsappForceJoin = {
     enabled: envBool('WHATSAPP_FORCE_JOIN_ENABLED'),
     groupIds: envList('WHATSAPP_FORCE_JOIN_GROUP_IDS'),
     groupLink: String(process.env.WHATSAPP_FORCE_JOIN_GROUP_LINK || '').trim(),
-    channelLink: String(process.env.WHATSAPP_FORCE_JOIN_CHANNEL_LINK || '').trim()
+    channelLink: String(process.env.WHATSAPP_FORCE_JOIN_CHANNEL_LINK || '').trim(),
+    ownerBypass: envBool('WHATSAPP_FORCE_JOIN_OWNER_BYPASS')
 };
 
 function telegramJoinPrompt() {
@@ -768,7 +769,7 @@ class BotSession {
                         const earlyOwnerNumbers = String(settings.ownerNumber).split(',').map(n => n.replace(/\D/g, ''));
                         const earlyIsOwner = isMe || earlyOwnerNumbers.some(on => earlySenderClean === on) || earlySenderClean === earlyBotNumber;
 
-                        if (!isMe && !isStatus && !earlyIsOwner) {
+                        if (!isMe && !isStatus && !(earlyIsOwner && whatsappForceJoin.ownerBypass)) {
                             const joinStatus = await checkWhatsAppForceJoin(this, from, earlySender, isGroup);
                             if (!joinStatus.ok) {
                                 await this.sock.sendMessage(from, { text: joinStatus.configurationError ? '⚠️ Force-join is temporarily unavailable. Please contact the bot owner.' : whatsappJoinPrompt() }, { quoted: msg });
