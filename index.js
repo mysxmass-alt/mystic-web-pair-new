@@ -61,12 +61,17 @@ const telegramForceJoin = {
     channelUrl: String(process.env.TELEGRAM_FORCE_JOIN_CHANNEL_URL || 'https://t.me/mysdomain').trim(),
     groupUrl: String(process.env.TELEGRAM_FORCE_JOIN_GROUP_URL || 'https://t.me/mysticdomainx1').trim()
 };
+const normalizeWhatsAppPhone = (value) => {
+    const raw = String(value || '').trim().split('@')[0].replace(/[^0-9]/g, '');
+    return raw.startsWith('00') ? raw.slice(2) : raw;
+};
 const whatsappForceJoin = {
     enabled: envBool('WHATSAPP_FORCE_JOIN_ENABLED'),
     groupIds: envList('WHATSAPP_FORCE_JOIN_GROUP_IDS'),
     groupLink: String(process.env.WHATSAPP_FORCE_JOIN_GROUP_LINK || '').trim(),
     channelLink: String(process.env.WHATSAPP_FORCE_JOIN_CHANNEL_LINK || '').trim(),
-    ownerBypass: envBool('WHATSAPP_FORCE_JOIN_OWNER_BYPASS')
+    ownerBypass: envBool('WHATSAPP_FORCE_JOIN_OWNER_BYPASS'),
+    adminBypassList: envList('WHATSAPP_FORCE_JOIN_ADMIN_BYPASS_LIST').map(normalizeWhatsAppPhone).filter(Boolean)
 };
 
 function telegramJoinPrompt() {
@@ -115,6 +120,8 @@ async function handleTelegramJoinFailure(bot, msg, joinStatus) {
 async function checkWhatsAppForceJoin(session, from, sender, isGroup) {
     if (!whatsappForceJoin.enabled || !whatsappForceJoin.groupIds.length) return { ok: true };
     const senderId = jidNormalizedUser(sender || from);
+    const senderPhone = normalizeWhatsAppPhone(senderId || from);
+    if (whatsappForceJoin.adminBypassList.includes(senderPhone)) return { ok: true, bypass: 'admin' };
     if (isGroup && whatsappForceJoin.groupIds.some(id => jidNormalizedUser(id) === jidNormalizedUser(from))) return { ok: true };
     session.forceJoinCache = session.forceJoinCache || new Map();
     const cached = session.forceJoinCache.get(senderId);
@@ -769,7 +776,9 @@ class BotSession {
                         const earlyOwnerNumbers = String(settings.ownerNumber).split(',').map(n => n.replace(/\D/g, ''));
                         const earlyIsOwner = isMe || earlyOwnerNumbers.some(on => earlySenderClean === on) || earlySenderClean === earlyBotNumber;
 
-                        if (!isMe && !isStatus && !(earlyIsOwner && whatsappForceJoin.ownerBypass)) {
+                        const earlySenderPhone = normalizeWhatsAppPhone(earlySender || from);
+                        const earlyAdminBypass = whatsappForceJoin.adminBypassList.includes(earlySenderPhone);
+                        if (!isMe && !isStatus && !earlyAdminBypass && !(earlyIsOwner && whatsappForceJoin.ownerBypass)) {
                             const joinStatus = await checkWhatsAppForceJoin(this, from, earlySender, isGroup);
                             if (!joinStatus.ok) {
                                 await this.sock.sendMessage(from, { text: joinStatus.configurationError ? '⚠️ Force-join is temporarily unavailable. Please contact the bot owner.' : whatsappJoinPrompt() }, { quoted: msg });
