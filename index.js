@@ -980,6 +980,17 @@ function getTelegramSession(chatId) {
     return sessions[userId];
 }
 
+const telegramQuickActions = {
+    casino: { label: 'Casino', icon: '🎰', command: '/casino', prompt: 'Explain the available casino commands and games in Mystic XMD.' },
+    anime: { label: 'Anime Cards', icon: '🖼️', command: '/anime', prompt: 'Show the user how to use the anime card features in Mystic XMD.' },
+    balance: { label: 'Balance', icon: '💰', command: '/balance', prompt: 'Explain how the user can check their Mystic XMD balance.' },
+    games: { label: 'Games', icon: '🎮', command: '/games', prompt: 'List the available game features and how to start them in Mystic XMD.' },
+    leaderboard: { label: 'Leaderboard', icon: '🏆', command: '/leaderboard', prompt: 'Explain how the Mystic XMD leaderboard works and how to view it.' },
+    help: { label: 'Help', icon: '❓', command: '/help', prompt: 'Give the user a clean summary of the available Mystic XMD bot features.' }
+};
+const telegramQuickKeyboard = () => ({ inline_keyboard: [['casino', 'anime'], ['balance', 'games'], ['leaderboard', 'help']].map(row => row.map(key => ({ text: `${telegramQuickActions[key].icon} ${telegramQuickActions[key].label}`, callback_data: `quick:${key}` }))) });
+const telegramMenuText = `*MYSTIC XMD V4 BETA — TELEGRAM CHATBOT*\n\nSend a normal message to chat with Akari.\nSend your WhatsApp number with country code to start pairing.\n\nUse the colorful buttons below for quick bot help, or use:\n/pair <number> — start WhatsApp pairing\n/ping — check bot response\n/ai <message> — chat with the AI companion`;
+
 if (tgBot) {
     tgBot.on('polling_error', (error) => {
         const message = error?.message || 'unknown polling error';
@@ -991,6 +1002,26 @@ if (tgBot) {
     });
 
     tgBot.on('error', (error) => console.error('Telegram bot error:', error?.message || error));
+
+    tgBot.on('callback_query', async (query) => {
+        const chatId = query.message?.chat?.id;
+        const actionKey = String(query.data || '').replace(/^quick:/, '');
+        const action = telegramQuickActions[actionKey];
+        if (!chatId || !action) return;
+        try { await tgBot.answerCallbackQuery(query.id, { text: `${action.label} selected` }); } catch (error) {}
+        const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
+        if (await handleTelegramJoinFailure(tgBot, query.message, joinStatus)) return;
+        if (actionKey === 'help') {
+            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
+            return;
+        }
+        try {
+            const session = getTelegramSession(chatId);
+            await tgBot.sendChatAction(chatId, 'typing');
+            await tgBot.sendMessage(chatId, `${action.icon} *${action.label} selected*\nCommand: \`${action.command}\`\n\nPreparing a quick guide…`, { parse_mode: 'Markdown' });
+            await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), action.prompt, query.from?.first_name || 'User'));
+        } catch (error) { await tgBot.sendMessage(chatId, `Use ${action.command} in Telegram or WhatsApp. The quick guide is temporarily unavailable.`); }
+    });
 
     tgBot.on('message', async (msg) => {
         const chatId = msg.chat.id;
@@ -1018,8 +1049,7 @@ if (tgBot) {
             const tgSock = createTelegramTransport(chatId, msg);
 
             if (commandName === 'start' || commandName === 'help' || commandName === 'menu') {
-                const menu = `*MYSTIC XMD V4 BETA — TELEGRAM CHATBOT*\n\nSend a normal message to chat with Akari.\nSend your WhatsApp number with country code to start pairing.\n\nCommands:\n/start or /menu — open this menu\n/pair <number> — start WhatsApp pairing\n/ping — check bot response\n/ai <message> — chat with the AI companion`;
-                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: menu, parse_mode: 'Markdown' }); } catch (error) { await tgBot.sendMessage(chatId, menu, { parse_mode: 'Markdown' }); }
+                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
                 return;
             }
 
