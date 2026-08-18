@@ -1042,13 +1042,16 @@ if (tgBot) {
             return;
         }
 
-        if (text.startsWith('/')) {
-            const parts = text.slice(1).split(/\s+/);
+        const normalizedText = text.toLowerCase();
+        const isMenuRequest = ['menu', 'buttons', 'panel', '.menu', '.buttons', '.panel'].includes(normalizedText);
+        if (text.startsWith('/') || text.startsWith('.') || isMenuRequest) {
+            const commandText = isMenuRequest ? 'menu' : text.slice(1);
+            const parts = commandText.split(/\s+/);
             const commandName = (parts.shift() || '').toLowerCase().split('@')[0];
             const q = parts.join(' ').trim();
             const tgSock = createTelegramTransport(chatId, msg);
 
-            if (commandName === 'start' || commandName === 'help' || commandName === 'menu') {
+            if (commandName === 'start' || commandName === 'help' || commandName === 'menu' || commandName === 'buttons' || commandName === 'panel') {
                 try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
                 return;
             }
