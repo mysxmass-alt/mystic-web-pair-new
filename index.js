@@ -950,6 +950,36 @@ if (tgToken) {
     console.log('Telegram integration disabled: TELEGRAM_BOT_TOKEN is not configured.');
 }
 
+async function sendTelegramAIResult(chatId, aiRes) {
+    if (!aiRes) return;
+    if (aiRes.type === 'image') return tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption || '' });
+    if (aiRes.type === 'voice') return tgBot.sendAudio(chatId, aiRes.url, { title: 'Mystic voice reply' });
+    if (aiRes.type === 'sticker') {
+        try { return await tgBot.sendSticker(chatId, aiRes.url); } catch (error) { return tgBot.sendPhoto(chatId, aiRes.url, { caption: 'Here is your sticker.' }); }
+    }
+    return tgBot.sendMessage(chatId, aiRes.content || String(aiRes));
+}
+
+function createTelegramTransport(chatId, msg) {
+    return {
+        sendMessage: async (_jid, content, options = {}) => {
+            if (content?.text) return tgBot.sendMessage(chatId, content.text, options);
+            if (content?.image) return tgBot.sendPhoto(chatId, content.image.url || content.image, { caption: content.caption || '', ...options });
+            if (content?.audio) return tgBot.sendAudio(chatId, content.audio.url || content.audio, options);
+            if (content?.video) return tgBot.sendVideo(chatId, content.video.url || content.video, { caption: content.caption || '', ...options });
+            if (content?.sticker) return tgBot.sendSticker(chatId, content.sticker, options);
+            return tgBot.sendMessage(chatId, String(content || ''), options);
+        }
+    };
+}
+
+function getTelegramSession(chatId) {
+    const userId = `tg_${chatId}`;
+    if (!sessions[userId]) sessions[userId] = new BotSession(userId);
+    sessions[userId].tgChatId = chatId;
+    return sessions[userId];
+}
+
 if (tgBot) {
     tgBot.on('polling_error', (error) => {
         const message = error?.message || 'unknown polling error';
@@ -962,63 +992,69 @@ if (tgBot) {
 
     tgBot.on('error', (error) => console.error('Telegram bot error:', error?.message || error));
 
-    tgBot.onText(/\/start/, async (msg) => {
-        const chatId = msg.chat.id;
-        const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
-        if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
-        const welcome = `Welcome to *MYSTIC XMD V4 BETA* Telegram.\n\nSend your WhatsApp number to pair.`;
-        try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: welcome, parse_mode: 'Markdown' }); } catch (e) { await tgBot.sendMessage(chatId, welcome, { parse_mode: 'Markdown' }); }
-    });
-
     tgBot.on('message', async (msg) => {
         const chatId = msg.chat.id;
-        const text = msg.text;
+        const text = String(msg.text || '').trim();
+        if (!text) return;
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
         if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
         const pushName = msg.from?.first_name || 'User';
-        if (!text || text.startsWith('/')) return;
+        const session = getTelegramSession(chatId);
 
-        if (/^\d+$/.test(text)) {
-            const userId = chatId.toString();
-            if (!sessions[userId]) sessions[userId] = new BotSession(userId);
-            sessions[userId].tgChatId = chatId;
-            await sessions[userId].initialize(text);
+        if (/^\d{8,18}$/.test(text)) {
+            try {
+                await tgBot.sendMessage(chatId, 'Preparing your WhatsApp pairing session…');
+                await session.initialize(text);
+            } catch (error) {
+                await tgBot.sendMessage(chatId, `Pairing could not start: ${error?.message || 'try again shortly.'}`);
+            }
             return;
         }
 
-        const userId = `tg_${chatId}`;
-        if (!sessions[userId]) sessions[userId] = new BotSession(userId);
-        const session = sessions[userId];
-        const prefix = botData.globalPrefix || settings.prefix || '.';
-        
-        if (text.startsWith(prefix)) {
-            const args = text.slice(prefix.length).trim().split(/ +/);
-            const commandName = args.shift().toLowerCase();
-            const q = args.join(' ');
-            const tgSock = {
-                sendMessage: async (jid, content) => {
-                    if (content.text) return await tgBot.sendMessage(chatId, content.text);
-                    if (content.image) return await tgBot.sendPhoto(chatId, content.image.url || content.image, { caption: content.caption });
-                    if (content.audio) return await tgBot.sendAudio(chatId, content.audio.url || content.audio);
-                    if (content.video) return await tgBot.sendVideo(chatId, content.video.url || content.video, { caption: content.caption });
-                }
-            };
+        if (text.startsWith('/')) {
+            const parts = text.slice(1).split(/\s+/);
+            const commandName = (parts.shift() || '').toLowerCase().split('@')[0];
+            const q = parts.join(' ').trim();
+            const tgSock = createTelegramTransport(chatId, msg);
+
+            if (commandName === 'start' || commandName === 'help' || commandName === 'menu') {
+                const menu = `*MYSTIC XMD V4 BETA — TELEGRAM CHATBOT*\n\nSend a normal message to chat with Akari.\nSend your WhatsApp number with country code to start pairing.\n\nCommands:\n/start or /menu — open this menu\n/pair <number> — start WhatsApp pairing\n/ping — check bot response\n/ai <message> — chat with the AI companion`;
+                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: menu, parse_mode: 'Markdown' }); } catch (error) { await tgBot.sendMessage(chatId, menu, { parse_mode: 'Markdown' }); }
+                return;
+            }
+
+            if (commandName === 'pair') {
+                if (!/^\d{8,18}$/.test(q.replace(/\D/g, ''))) return tgBot.sendMessage(chatId, 'Usage: /pair 2348012345678');
+                try { await session.initialize(q.replace(/\D/g, '')); await tgBot.sendMessage(chatId, 'Pairing session started. Follow the code or QR instructions from the bot.'); } catch (error) { await tgBot.sendMessage(chatId, `Pairing could not start: ${error?.message || 'try again shortly.'}`); }
+                return;
+            }
+
+            if (commandName === 'ping') {
+                await tgBot.sendMessage(chatId, `Pong — Telegram and Mystic XMD are connected. Uptime: ${Math.floor(process.uptime())}s`);
+                return;
+            }
+
+            if (commandName === 'ai') {
+                if (!q) return tgBot.sendMessage(chatId, 'Usage: /ai your message');
+                try { await tgBot.sendChatAction(chatId, 'typing'); await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), q, pushName)); } catch (error) { await tgBot.sendMessage(chatId, 'The AI companion is temporarily unavailable. Please try again.'); }
+                return;
+            }
+
             try {
                 if (commandName === 'anime') await commands.anime(tgSock, chatId, msg, q);
-                else if (commandName === 'song') await commands.song(tgSock, chatId, msg, args);
+                else if (commandName === 'song') await commands.song(tgSock, chatId, msg, parts);
                 else if (commandName === 'waifu') await commands.animemaker(tgSock, chatId, msg, 'waifu');
-            } catch (e) { console.error(e); }
+                else await tgBot.sendMessage(chatId, 'I do not know that command yet. Send /menu for the available options, or just write a normal message.');
+            } catch (error) { console.error('Telegram command failed:', error?.message || error); await tgBot.sendMessage(chatId, 'That command failed temporarily. Please try again.'); }
             return;
         }
 
-        if (msg.chat.type === 'private' || text.toLowerCase().includes('akari')) {
-            try {
-                await tgBot.sendChatAction(chatId, 'typing');
-                const aiRes = await session.getAIResponse(chatId.toString(), text, pushName);
-                if (aiRes.type === 'image') await tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption });
-                else if (aiRes.type === 'voice') await tgBot.sendAudio(chatId, aiRes.url);
-                else await tgBot.sendMessage(chatId, aiRes.content);
-            } catch (e) {}
+        try {
+            await tgBot.sendChatAction(chatId, 'typing');
+            await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), text, pushName));
+        } catch (error) {
+            console.error('Telegram chatbot failed:', error?.message || error);
+            await tgBot.sendMessage(chatId, 'The chatbot is temporarily unavailable. Please try again.');
         }
     });
 }
