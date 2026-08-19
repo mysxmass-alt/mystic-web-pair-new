@@ -1014,6 +1014,37 @@ const telegramQuickActions = {
 const telegramQuickKeyboard = () => ({ inline_keyboard: [['casino', 'anime'], ['balance', 'games'], ['leaderboard', 'help']].map(row => row.map(key => ({ text: `${telegramQuickActions[key].icon} ${telegramQuickActions[key].label}`, callback_data: `quick:${key}` }))) });
 const telegramMenuText = `*MYSTIC XMD V4 BETA — AKARI COMPANION*\n\nI am Akari, your warm anime-inspired AI companion. Send a normal message in private chat, or call me in a group by mentioning my Telegram username, saying Akari, or replying to my message.\n\nSend your WhatsApp number with country code to start pairing.\n\nUse the colorful buttons below for quick bot help, or use:\n/akari <message> — talk directly with Akari\n/pair <number> — start WhatsApp pairing\n/ping — check bot response\n/ai <message> — chat with the AI companion`;
 
+const telegramGroupRules = new Map();
+const telegramGroupWarnings = new Map();
+const telegramModerationPermissions = { can_send_messages: true, can_send_audios: true, can_send_documents: true, can_send_photos: true, can_send_videos: true, can_send_video_notes: true, can_send_voice_notes: true, can_send_polls: true, can_send_other_messages: true, can_add_web_page_previews: true, can_change_info: false, can_invite_users: true, can_pin_messages: false, can_manage_topics: false };
+const isTelegramGroupMessage = (msg) => ['group', 'supergroup'].includes(String(msg?.chat?.type || '').toLowerCase());
+const getTelegramTarget = (msg, args = []) => {
+    const target = msg?.reply_to_message?.from;
+    if (target?.id && !target.is_bot) return target;
+    const numericId = String(args[0] || '').match(/^-?\d+$/)?.[0];
+    if (numericId) return { id: numericId, first_name: `User ${numericId}` };
+    return null;
+};
+const telegramTargetLabel = (target) => target?.username ? `@${target.username}` : target?.first_name || String(target?.id || 'that user');
+async function isTelegramGroupAdmin(chatId, userId) {
+    if (String(settings.tgOwnerId || '') === String(userId || '')) return true;
+    try {
+        const member = await tgBot.getChatMember(chatId, userId);
+        return ['creator', 'administrator'].includes(member?.status);
+    } catch (error) {
+        console.error('Telegram admin check failed:', error?.message || error);
+        return false;
+    }
+}
+async function requireTelegramGroupAdmin(msg) {
+    if (!isTelegramGroupMessage(msg)) { await tgBot.sendMessage(msg.chat.id, 'This group feature can only be used inside a Telegram group.'); return false; }
+    if (await isTelegramGroupAdmin(msg.chat.id, msg.from?.id)) return true;
+    await tgBot.sendMessage(msg.chat.id, '🔒 Only group admins can use that moderation command.');
+    return false;
+}
+const moderationKey = (chatId, userId) => `${chatId}:${userId}`;
+const getGroupRules = (chatId) => telegramGroupRules.get(String(chatId)) || 'Be kind, avoid spam, respect everyone, and keep the group welcoming.';
+
 if (tgBot) {
     tgBot.on('polling_error', (error) => {
         const message = error?.message || 'unknown polling error';
@@ -1048,6 +1079,15 @@ if (tgBot) {
 
     tgBot.on('message', async (msg) => {
         const chatId = msg.chat.id;
+        if (Array.isArray(msg.new_chat_members) && msg.new_chat_members.length) {
+            const names = msg.new_chat_members.filter(member => !member.is_bot).map(member => member.first_name || 'friend');
+            if (names.length) await tgBot.sendMessage(chatId, `🌸 Welcome ${names.map(name => `*${name}*`).join(', ')}! I’m Akari. Please read /rules and enjoy the group.`, { parse_mode: 'Markdown' });
+            return;
+        }
+        if (msg.left_chat_member && !msg.left_chat_member.is_bot) {
+            await tgBot.sendMessage(chatId, `さようなら, ${msg.left_chat_member.first_name || 'friend'}! We hope to see you again. 🌙`);
+            return;
+        }
         const text = String(msg.text || '').trim();
         if (!text) return;
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
@@ -1083,6 +1123,77 @@ if (tgBot) {
 
             if (commandName === 'start' || commandName === 'help' || commandName === 'menu' || commandName === 'buttons' || commandName === 'panel') {
                 try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
+                return;
+            }
+
+            if (commandName === 'rules') {
+                await tgBot.sendMessage(chatId, `📜 *Group rules*\n\n${getGroupRules(chatId)}`, { parse_mode: 'Markdown' });
+                return;
+            }
+
+            if (commandName === 'setrules') {
+                if (!await requireTelegramGroupAdmin(msg)) return;
+                const rules = q.slice(0, 1200).trim();
+                if (!rules) return tgBot.sendMessage(chatId, 'Usage: /setrules Be respectful and avoid spam.');
+                telegramGroupRules.set(String(chatId), rules);
+                await tgBot.sendMessage(chatId, '✅ Group rules updated.');
+                return;
+            }
+
+            if (['kick', 'ban', 'unban', 'mute', 'unmute', 'warn', 'warnings'].includes(commandName)) {
+                if (commandName === 'warnings' && !q && !msg.reply_to_message) {
+                    await tgBot.sendMessage(chatId, 'Use /warnings while replying to a member’s message.');
+                    return;
+                }
+                if (!await requireTelegramGroupAdmin(msg)) return;
+                const target = getTelegramTarget(msg, parts);
+                if (!target) return tgBot.sendMessage(chatId, 'Reply to the member’s message or provide their numeric Telegram user ID.');
+                const label = telegramTargetLabel(target);
+                if (commandName === 'warnings') {
+                    await tgBot.sendMessage(chatId, `⚠️ ${label} has ${telegramGroupWarnings.get(moderationKey(chatId, target.id)) || 0} warning(s).`);
+                    return;
+                }
+                try {
+                    if (commandName === 'kick') {
+                        await tgBot.banChatMember(chatId, target.id);
+                        await tgBot.unbanChatMember(chatId, target.id, { only_if_banned: true });
+                        await tgBot.sendMessage(chatId, `👋 ${label} was removed from the group.`);
+                    } else if (commandName === 'ban') {
+                        await tgBot.banChatMember(chatId, target.id);
+                        await tgBot.sendMessage(chatId, `⛔ ${label} was banned by the group moderators.`);
+                    } else if (commandName === 'unban') {
+                        await tgBot.unbanChatMember(chatId, target.id, { only_if_banned: true });
+                        await tgBot.sendMessage(chatId, `✅ ${label} may join the group again.`);
+                    } else if (commandName === 'mute') {
+                        const minutes = Math.min(10080, Math.max(1, Number(parts[0]) || 10));
+                        await tgBot.restrictChatMember(chatId, target.id, { permissions: { can_send_messages: false }, until_date: Math.floor(Date.now() / 1000) + minutes * 60 });
+                        await tgBot.sendMessage(chatId, `🔇 ${label} is muted for ${minutes} minute(s).`);
+                    } else if (commandName === 'unmute') {
+                        await tgBot.restrictChatMember(chatId, target.id, { permissions: telegramModerationPermissions });
+                        await tgBot.sendMessage(chatId, `🔊 ${label} can speak again.`);
+                    } else if (commandName === 'warn') {
+                        const key = moderationKey(chatId, target.id);
+                        const count = (telegramGroupWarnings.get(key) || 0) + 1;
+                        telegramGroupWarnings.set(key, count);
+                        if (count >= 3) {
+                            await tgBot.restrictChatMember(chatId, target.id, { permissions: { can_send_messages: false }, until_date: Math.floor(Date.now() / 1000) + 30 * 60 });
+                            await tgBot.sendMessage(chatId, `⚠️ ${label} received warning ${count}/3 and is muted for 30 minutes.`);
+                        } else await tgBot.sendMessage(chatId, `⚠️ Warning ${count}/3 for ${label}. Please follow the group rules.`);
+                    }
+                } catch (error) { await tgBot.sendMessage(chatId, `I could not complete that moderation action. Make sure I am an administrator with the required permissions.`); }
+                return;
+            }
+
+            if (['roll', '8ball', 'ship', 'hug', 'slap'].includes(commandName)) {
+                const targetName = q || msg.reply_to_message?.from?.first_name || 'everyone';
+                const funReplies = {
+                    roll: `🎲 ${pushName} rolled *${1 + Math.floor(Math.random() * 100)}*!`,
+                    '8ball': `🔮 ${['Definitely!', 'Probably yes.', 'Ask me again later, ne?', 'Not today.', 'The stars are undecided.'][Math.floor(Math.random() * 5)]}`,
+                    ship: `💞 Akari’s friendship scanner says ${pushName} + ${targetName} = *${50 + Math.floor(Math.random() * 51)}%* sparkle!`,
+                    hug: `🤗 Akari gives ${targetName} a gentle virtual hug!`,
+                    slap: `🥢 Akari gives ${targetName} a playful bonk—be nice, okay?`
+                };
+                await tgBot.sendMessage(chatId, funReplies[commandName], { parse_mode: 'Markdown' });
                 return;
             }
 
