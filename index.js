@@ -105,7 +105,10 @@ async function handleTelegramJoinFailure(bot, msg, joinStatus) {
     if (joinStatus.configurationError) {
         const chatType = msg.chat?.type || 'private';
         console.error(`Telegram force-join configuration error in ${chatType} chat ${msg.chat?.id || 'unknown'}; verify target IDs and bot admin permissions.`);
-        if (chatType !== 'private') return true;
+        if (chatType !== 'private') {
+            console.warn(`Telegram force-join is failing open for group ${msg.chat?.id || 'unknown'} so Akari and group commands remain usable.`);
+            return false;
+        }
         const chatKey = String(msg.chat?.id || 'unknown');
         const lastNotice = telegramForceJoinNoticeCache.get(chatKey) || 0;
         if (Date.now() - lastNotice < 15 * 60 * 1000) return true;
@@ -523,7 +526,7 @@ class BotSession {
             }
 
             // Tertiary: Chatbot API
-            const chatbotUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(userMessage)}`;
+            const chatbotUrl = `https://prexzyapis.com/ai/ch?q=${encodeURIComponent(context)}`;
             try {
                 const chatbotRes = await axios.get(chatbotUrl);
                 if (chatbotRes.data && chatbotRes.data.status && chatbotRes.data.response) {
@@ -572,7 +575,14 @@ class BotSession {
                 }
             } catch (e) {}
             
-            throw new Error("Invalid API response from all sources");
+            const lowerMessage = String(userMessage || '').toLowerCase();
+            let localReply = `🌸 ${pushName || 'Friend'}, I’m Akari. I heard you say: “${userMessage}”\n\nI’m having a little trouble reaching my cloud imagination right now, but I’m still here with you. 大丈夫, please try again in a moment, ne?`;
+            if (/\b(hello|hi|hey|おはよう|こんにちは)\b/i.test(lowerMessage)) localReply = `🌸 Ohayō, ${pushName || 'friend'}! I’m Akari. It’s lovely to see you here. How can I brighten your day? ね`;
+            else if (/\b(sad|tired|cry|hurt|bad day|upset)\b/i.test(lowerMessage)) localReply = `🤍 Come here, ${pushName || 'friend'}… I’m listening. You do not have to carry everything alone. Take one slow breath with me, 大丈夫.`;
+            else if (/\b(thank|thanks|ありがとう)\b/i.test(lowerMessage)) localReply = `🌸 You’re welcome, ${pushName || 'friend'}! That makes Akari smile. I’m always happy to help when I can.`;
+            else if (/\b(game|play|fun|roll|dice)\b/i.test(lowerMessage)) localReply = `🎮 Ehehe, a game sounds fun, ${pushName || 'friend'}! Try the Games buttons or use /roll, /8ball, /hug, /ship, or /slap.`;
+            this.updateHistory(userJid, userMessage, localReply);
+            return { type: 'text', content: localReply };
         } catch (error) {
             console.error("AI Error:", error.message);
             return { type: 'text', content: "❌ AI Error: " + error.message };
@@ -1052,8 +1062,8 @@ const telegramQuickActions = {
     leaderboard: { label: 'Leaderboard', icon: '🏆', command: '/leaderboard', prompt: 'Explain how the Mystic XMD leaderboard works and how to view it.' },
     help: { label: 'Help', icon: '❓', command: '/help', prompt: 'Give the user a clean summary of the available Mystic XMD bot features.' }
 };
-const telegramMainKeyboard = () => ({ keyboard: [['🎰 Casino', '🎴 Anime Cards'], ['💰 Balance', '🎮 Games'], ['🏆 Leaderboard', '💹 Economy']], resize_keyboard: true, is_persistent: true, input_field_placeholder: 'Choose an Akari feature…' });
-const telegramQuickKeyboard = () => ({ inline_keyboard: [['🎰 Casino', '🎴 Anime Cards'], ['💰 Balance', '🎮 Games'], ['🏆 Leaderboard', '💹 Economy'], ['❓ Help']].map(row => row.map(label => ({ text: label, callback_data: `category:${label.split(' ').slice(1).join('_').toLowerCase() || 'help'}` }))) });
+const telegramMainKeyboard = () => ({ keyboard: [['🟥 Casino', '🟩 Anime Cards'], ['🟦 Balance', '🟢 Games'], ['🟨 Leaderboard', '🟪 Economy']], resize_keyboard: true, is_persistent: true, input_field_placeholder: 'Choose an Akari feature…' });
+const telegramQuickKeyboard = () => ({ inline_keyboard: [['🟥 Casino', '🟩 Anime Cards'], ['🟦 Balance', '🟢 Games'], ['🟨 Leaderboard', '🟪 Economy'], ['❓ Help']].map(row => row.map(label => ({ text: label, callback_data: `category:${label.split(' ').slice(1).join('_').toLowerCase() || 'help'}` }))) });
 const telegramCategoryKeyboards = {
     casino: { title: '🎰 *Casino Center*', rows: [['🎰 Slots', '🎲 Dice'], ['🎡 Roulette', '🃏 Blackjack'], ['🪙 Coinflip', '🎟️ Lottery'], ['⬅️ Back to Menu']] },
     anime_cards: { title: '🎴 *Anime Card Studio*', rows: [['🎴 Draw Card', '📚 My Collection'], ['🔄 Trade Cards', '🏆 Card Leaderboard'], ['🛒 Card Shop', '💸 Sell Card'], ['⬅️ Back to Menu']] },
@@ -1063,6 +1073,21 @@ const telegramCategoryKeyboards = {
     economy: { title: '💹 *Economy Center*', rows: [['💰 Balance', '🎁 Daily'], ['🎉 Bonus', '🏦 Deposit'], ['💸 Withdraw', '❓ Economy Help'], ['⬅️ Back to Menu']] }
 };
 const telegramCategoryKeyboard = (key) => ({ inline_keyboard: (telegramCategoryKeyboards[key]?.rows || [['⬅️ Back to Menu']]).map(row => row.map(label => ({ text: label, callback_data: `feature:${key}:${label.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase()}` }))) });
+const telegramGameReply = (feature, name = 'friend') => {
+    const target = name || 'friend';
+    const replies = {
+        roll: `🎲 *Akari’s Dice Roll*\n\n> ${target}, your result is *${1 + Math.floor(Math.random() * 6)}* / 6.\n\nね, try again if you feel lucky!`,
+        '8ball': `🔮 *Akari’s Magic 8-Ball*\n\n> ${['Definitely yes!', 'Probably yes!', 'The stars say wait a little.', 'Not today, ne?', 'Ask me again with your heart.'][Math.floor(Math.random() * 5)]}`,
+        ship: `💞 *Akari’s Friendship Scanner*\n\n> ${target}, friendship sparkle is *${50 + Math.floor(Math.random() * 51)}%*.\n\nPlease keep it kind and fun!`,
+        hug: `🤗 *Akari’s Comfort Corner*\n\n> Sending ${target} a gentle virtual hug. 大丈夫, you are not alone.`,
+        slap: `🥢 *Akari’s Playful Bonk*\n\n> ${target} received a harmless bonk. Please be nice to everyone, okay?`
+    };
+    return replies[feature] || `🎮 *Games Arcade*\n\n> Choose a game button below, ${target}.`;
+};
+const telegramButtonLookup = {
+    '🟥 casino': 'casino', '🟩 anime cards': 'anime_cards', '🟦 balance': 'balance', '🟢 games': 'games', '🟨 leaderboard': 'leaderboard', '🟪 economy': 'economy',
+    '🎲 roll': 'roll', '🔮 8ball': '8ball', '💞 ship': 'ship', '🤗 hug': 'hug', '🥢 slap': 'slap'
+};
 const telegramMenuText = `*「 AKARI 」 MYSTIC XMD*
 
 > 🌸 Your friendly anime-inspired companion is ready.
@@ -1143,6 +1168,9 @@ if (tgBot) {
             const category = telegramCategoryKeyboards[key];
             const readable = String(feature || '').replace(/_/g, ' ');
             const label = readable.replace(/\b\w/g, letter => letter.toUpperCase());
+            if (key === 'games' && ['roll', '8ball', 'ship', 'hug', 'slap'].includes(feature)) {
+                return sendTelegramMessage(chatId, telegramGameReply(feature, query.from?.first_name || 'friend'), query.message, { parse_mode: 'Markdown' });
+            }
             try {
                 const session = getTelegramSession(chatId);
                 await tgBot.sendChatAction(chatId, 'typing');
@@ -1179,13 +1207,22 @@ if (tgBot) {
         const text = String(msg.text || '').trim();
         if (!text) return;
         const isGroupChat = isTelegramGroupMessage(msg);
+        const buttonIntent = telegramButtonLookup[text.toLowerCase()];
+        if (buttonIntent) {
+            if (telegramCategoryKeyboards[buttonIntent]) return sendTelegramMessage(chatId, `${telegramCategoryKeyboards[buttonIntent].title}\n\n> Choose an action below, and Akari will guide you.`, msg, { parse_mode: 'Markdown', reply_markup: telegramCategoryKeyboard(buttonIntent) });
+            if (['roll', '8ball', 'ship', 'hug', 'slap'].includes(buttonIntent)) return sendTelegramMessage(chatId, telegramGameReply(buttonIntent, msg.from?.first_name || 'friend'), msg, { parse_mode: 'Markdown' });
+        }
         if (isGroupChat && isTelegramAntiLinkEnabled(chatId) && telegramLinkPattern.test(text) && !(await isTelegramGroupAdmin(chatId, msg.from?.id))) {
             try { await tgBot.deleteMessage(chatId, msg.message_id); } catch (error) { console.error('Anti-link delete failed:', error?.message || error); }
             try { await sendTelegramMessage(chatId, '🚫 Links are not allowed here. Please ask an admin before sharing one.', msg); } catch (error) {}
             return;
         }
-        const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
-        if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
+        // Group conversations must remain usable even when private force-join targets are unavailable.
+        // Force-join is enforced for private chats; group access is governed by Telegram permissions and Akari invocation rules.
+        if (!isGroupChat) {
+            const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
+            if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
+        }
         const pushName = msg.from?.first_name || 'User';
         const isGroup = ['group', 'supergroup'].includes(String(msg.chat?.type || '').toLowerCase());
         const mentionPattern = telegramBotUsername ? new RegExp(`@${telegramBotUsername}\\b`, 'i') : /@akari\\b/i;
