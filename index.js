@@ -945,7 +945,22 @@ let telegramBotUsername = '';
 if (tgToken) {
     try {
         tgBot = new TelegramBot(tgToken, { polling: { autoStart: true, params: { timeout: 30 } } });
-        tgBot.getMe().then(me => { telegramBotUsername = me?.username || ''; }).catch(() => {});
+        tgBot.getMe().then(async me => {
+            telegramBotUsername = me?.username || '';
+            try {
+                await tgBot.setMyCommands([
+                    { command: 'start', description: 'Open Akari buttons' },
+                    { command: 'akari', description: 'Talk to Akari' },
+                    { command: 'menu', description: 'Show buttons' },
+                    { command: 'rules', description: 'Show group rules' },
+                    { command: 'antilink', description: 'Admin: anti-link status' },
+                    { command: 'mute', description: 'Admin: mute a replied user' },
+                    { command: 'warn', description: 'Admin: warn a replied user' },
+                    { command: 'roll', description: 'Roll a number' },
+                    { command: '8ball', description: 'Ask the magic 8-ball' }
+                ]);
+            } catch (error) { console.error('Telegram command menu setup failed:', error?.message || error); }
+        }).catch(error => console.error('Telegram getMe failed:', error?.message || error));
     } catch (error) {
         console.error('Telegram disabled: unable to initialize bot:', error.message);
     }
@@ -1071,7 +1086,7 @@ if (tgBot) {
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
         if (await handleTelegramJoinFailure(tgBot, query.message, joinStatus)) return;
         if (actionKey === 'help') {
-            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message || msg) }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message || msg) }); }
+            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message) }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message) }); }
             return;
         }
         try {
