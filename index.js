@@ -110,10 +110,10 @@ async function handleTelegramJoinFailure(bot, msg, joinStatus) {
         const lastNotice = telegramForceJoinNoticeCache.get(chatKey) || 0;
         if (Date.now() - lastNotice < 15 * 60 * 1000) return true;
         telegramForceJoinNoticeCache.set(chatKey, Date.now());
-        await bot.sendMessage(msg.chat.id, '⚠️ Telegram force-join is temporarily unavailable. Please contact the bot owner.');
+        await sendTelegramMessage(msg.chat.id, '⚠️ Telegram force-join is temporarily unavailable. Please contact the bot owner.', msg);
         return true;
     }
-    await bot.sendMessage(msg.chat.id, telegramJoinPrompt(), { parse_mode: 'Markdown' });
+    await sendTelegramMessage(msg.chat.id, telegramJoinPrompt(), msg, { parse_mode: 'Markdown' });
     return true;
 }
 
@@ -662,7 +662,7 @@ class BotSession {
                                 `*\u{1F511} YOUR PAIRING CODE:* \`${code}\`\n\n` +
                                 `_Enter this code in your WhatsApp Linked Devices section._\n\n` +
                                 `> © POWERED BY MYSTIC XMD V4 BETA v4.0`;
-                            await tgBot.sendMessage(this.tgChatId, codeMsg, { parse_mode: 'Markdown' });
+                            await sendTelegramMessage(this.tgChatId, codeMsg, null, { parse_mode: 'Markdown' });
                         }
 
                         const socketId = userSockets[this.userId];
@@ -670,7 +670,7 @@ class BotSession {
                     } catch (err) {
                         this.sendLog(`\u{274C} Pairing error: ${err.message}`, 'error');
                         if (this.tgChatId && tgBot) {
-                            await tgBot.sendMessage(this.tgChatId, "\u{274C} Pairing Error: " + err.message);
+                            await sendTelegramMessage(this.tgChatId, "\u{274C} Pairing Error: " + err.message);
                         }
                     }
                 }
@@ -978,13 +978,21 @@ async function sendAkariSticker(chatId, emotion = 'happy', isGroup = false) {
     if (Math.random() > groupChance) return false;
     const sticker = settings.akariStickerIds[Math.floor(Math.random() * settings.akariStickerIds.length)];
     try {
-        await tgBot.sendSticker(chatId, sticker);
+        const replyOptions = telegramQuoteOptions(telegramReplyContexts?.get(String(chatId)));
+        await tgBot.sendSticker(chatId, sticker, replyOptions);
         global.akariStickerLastSent = global.akariStickerLastSent || {};
         global.akariStickerLastSent[cooldownKey] = now;
         return true;
     } catch (error) {
-        console.error(`Akari sticker expression failed (${emotion}):`, error?.message || error);
-        return false;
+        try {
+            await tgBot.sendSticker(chatId, sticker);
+            global.akariStickerLastSent = global.akariStickerLastSent || {};
+            global.akariStickerLastSent[cooldownKey] = now;
+            return true;
+        } catch (fallbackError) {
+            console.error(`Akari sticker expression failed (${emotion}):`, fallbackError?.message || fallbackError);
+            return false;
+        }
     }
 }
 
@@ -999,16 +1007,32 @@ async function sendTelegramAIResult(chatId, aiRes, replyOptions = {}) {
 }
 
 const telegramQuoteOptions = (msg) => settings.telegramQuoteReplies && msg?.message_id ? { reply_to_message_id: msg.message_id, allow_sending_without_reply: true } : {};
+const telegramReplyContexts = new Map();
+async function sendTelegramMessage(chatId, text, source, options = {}) {
+    const replySource = source || telegramReplyContexts.get(String(chatId));
+    const replyOptions = { ...options, ...telegramQuoteOptions(replySource) };
+    try { return await tgBot.sendMessage(chatId, text, replyOptions); }
+    catch (error) {
+        if (replyOptions.reply_to_message_id) {
+            const fallbackOptions = { ...options };
+            delete fallbackOptions.reply_to_message_id;
+            delete fallbackOptions.allow_sending_without_reply;
+            return tgBot.sendMessage(chatId, text, fallbackOptions);
+        }
+        throw error;
+    }
+}
 
 function createTelegramTransport(chatId, msg) {
     return {
         sendMessage: async (_jid, content, options = {}) => {
-            if (content?.text) return tgBot.sendMessage(chatId, content.text, options);
-            if (content?.image) return tgBot.sendPhoto(chatId, content.image.url || content.image, { caption: content.caption || '', ...options });
-            if (content?.audio) return tgBot.sendAudio(chatId, content.audio.url || content.audio, options);
-            if (content?.video) return tgBot.sendVideo(chatId, content.video.url || content.video, { caption: content.caption || '', ...options });
-            if (content?.sticker) return tgBot.sendSticker(chatId, content.sticker, options);
-            return tgBot.sendMessage(chatId, String(content || ''), options);
+            const replyOptions = { ...options, ...telegramQuoteOptions(msg) };
+            if (content?.text) return sendTelegramMessage(chatId, content.text, msg, options);
+            if (content?.image) return tgBot.sendPhoto(chatId, content.image.url || content.image, { caption: content.caption || '', ...replyOptions });
+            if (content?.audio) return tgBot.sendAudio(chatId, content.audio.url || content.audio, replyOptions);
+            if (content?.video) return tgBot.sendVideo(chatId, content.video.url || content.video, { caption: content.caption || '', ...replyOptions });
+            if (content?.sticker) return tgBot.sendSticker(chatId, content.sticker, replyOptions);
+            return sendTelegramMessage(chatId, String(content || ''), msg, options);
         }
     };
 }
@@ -1056,9 +1080,9 @@ async function isTelegramGroupAdmin(chatId, userId) {
     }
 }
 async function requireTelegramGroupAdmin(msg) {
-    if (!isTelegramGroupMessage(msg)) { await tgBot.sendMessage(msg.chat.id, 'This group feature can only be used inside a Telegram group.'); return false; }
+    if (!isTelegramGroupMessage(msg)) { await sendTelegramMessage(msg.chat.id, 'This group feature can only be used inside a Telegram group.', msg); return false; }
     if (await isTelegramGroupAdmin(msg.chat.id, msg.from?.id)) return true;
-    await tgBot.sendMessage(msg.chat.id, '🔒 Only group admins can use that moderation command.');
+    await sendTelegramMessage(msg.chat.id, '🔒 Only group admins can use that moderation command.', msg);
     return false;
 }
 const moderationKey = (chatId, userId) => `${chatId}:${userId}`;
@@ -1086,26 +1110,27 @@ if (tgBot) {
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
         if (await handleTelegramJoinFailure(tgBot, query.message, joinStatus)) return;
         if (actionKey === 'help') {
-            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message) }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message) }); }
+            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message) }); } catch (error) { await sendTelegramMessage(chatId, telegramMenuText, query.message, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
             return;
         }
         try {
             const session = getTelegramSession(chatId);
             await tgBot.sendChatAction(chatId, 'typing');
-            await tgBot.sendMessage(chatId, `${action.icon} *${action.label} selected*\nCommand: \`${action.command}\`\n\nPreparing a quick guide…`, { parse_mode: 'Markdown' });
+            await sendTelegramMessage(chatId, `${action.icon} *${action.label} selected*\nCommand: \`${action.command}\`\n\nPreparing a quick guide…`, query.message, { parse_mode: 'Markdown' });
             await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), action.prompt, query.from?.first_name || 'User'), telegramQuoteOptions(query.message));
-        } catch (error) { await tgBot.sendMessage(chatId, `Use ${action.command} in Telegram or WhatsApp. The quick guide is temporarily unavailable.`); }
+        } catch (error) { await sendTelegramMessage(chatId, `Use ${action.command} in Telegram or WhatsApp. The quick guide is temporarily unavailable.`, query.message); }
     });
 
     tgBot.on('message', async (msg) => {
         const chatId = msg.chat.id;
+        telegramReplyContexts.set(String(chatId), msg);
         if (Array.isArray(msg.new_chat_members) && msg.new_chat_members.length) {
             const names = msg.new_chat_members.filter(member => !member.is_bot).map(member => member.first_name || 'friend');
-            if (names.length) await tgBot.sendMessage(chatId, `🌸 Welcome ${names.map(name => `*${name}*`).join(', ')}! I’m Akari. Please read /rules and enjoy the group.`, { parse_mode: 'Markdown' });
+            if (names.length) await sendTelegramMessage(chatId, `🌸 Welcome ${names.map(name => `*${name}*`).join(', ')}! I’m Akari. Please read /rules and enjoy the group.`, msg, { parse_mode: 'Markdown' });
             return;
         }
         if (msg.left_chat_member && !msg.left_chat_member.is_bot) {
-            await tgBot.sendMessage(chatId, `さようなら, ${msg.left_chat_member.first_name || 'friend'}! We hope to see you again. 🌙`);
+            await sendTelegramMessage(chatId, `さようなら, ${msg.left_chat_member.first_name || 'friend'}! We hope to see you again. 🌙`, msg);
             return;
         }
         const text = String(msg.text || '').trim();
@@ -1113,7 +1138,7 @@ if (tgBot) {
         const isGroupChat = isTelegramGroupMessage(msg);
         if (isGroupChat && isTelegramAntiLinkEnabled(chatId) && telegramLinkPattern.test(text) && !(await isTelegramGroupAdmin(chatId, msg.from?.id))) {
             try { await tgBot.deleteMessage(chatId, msg.message_id); } catch (error) { console.error('Anti-link delete failed:', error?.message || error); }
-            try { await tgBot.sendMessage(chatId, '🚫 Links are not allowed here. Please ask an admin before sharing one.', telegramQuoteOptions(msg)); } catch (error) {}
+            try { await sendTelegramMessage(chatId, '🚫 Links are not allowed here. Please ask an admin before sharing one.', msg); } catch (error) {}
             return;
         }
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
@@ -1130,10 +1155,10 @@ if (tgBot) {
 
         if (/^\d{8,18}$/.test(text)) {
             try {
-                await tgBot.sendMessage(chatId, 'Preparing your WhatsApp pairing session…');
+                await sendTelegramMessage(chatId, 'Preparing your WhatsApp pairing session…', msg);
                 await session.initialize(text);
             } catch (error) {
-                await tgBot.sendMessage(chatId, `Pairing could not start: ${error?.message || 'try again shortly.'}`);
+                await sendTelegramMessage(chatId, `Pairing could not start: ${error?.message || 'try again shortly.'}`, msg);
             }
             return;
         }
@@ -1148,7 +1173,7 @@ if (tgBot) {
             const tgSock = createTelegramTransport(chatId, msg);
 
             if (commandName === 'start' || commandName === 'help' || commandName === 'menu' || commandName === 'buttons' || commandName === 'panel') {
-                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(msg) }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(msg) }); }
+                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(msg) }); } catch (error) { await sendTelegramMessage(chatId, telegramMenuText, msg, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
                 return;
             }
 
@@ -1158,65 +1183,65 @@ if (tgBot) {
                 if (mode === 'on' || mode === 'enable') telegramAntiLinkChats.set(String(chatId), true);
                 else if (mode === 'off' || mode === 'disable') telegramAntiLinkChats.set(String(chatId), false);
                 const status = isTelegramAntiLinkEnabled(chatId) ? 'ON' : 'OFF';
-                await tgBot.sendMessage(chatId, `🔗 Anti-link is now *${status}* for this group.`, { parse_mode: 'Markdown', ...telegramQuoteOptions(msg) });
+                await sendTelegramMessage(chatId, `🔗 Anti-link is now *${status}* for this group.`, msg, { parse_mode: 'Markdown' });
                 return;
             }
 
             if (commandName === 'rules') {
-                await tgBot.sendMessage(chatId, `📜 *Group rules*\n\n${getGroupRules(chatId)}`, { parse_mode: 'Markdown' });
+                await sendTelegramMessage(chatId, `📜 *Group rules*\n\n${getGroupRules(chatId)}`, msg, { parse_mode: 'Markdown' });
                 return;
             }
 
             if (commandName === 'setrules') {
                 if (!await requireTelegramGroupAdmin(msg)) return;
                 const rules = q.slice(0, 1200).trim();
-                if (!rules) return tgBot.sendMessage(chatId, 'Usage: /setrules Be respectful and avoid spam.');
+                if (!rules) return sendTelegramMessage(chatId, 'Usage: /setrules Be respectful and avoid spam.', msg);
                 telegramGroupRules.set(String(chatId), rules);
-                await tgBot.sendMessage(chatId, '✅ Group rules updated.');
+                await sendTelegramMessage(chatId, '✅ Group rules updated.', msg);
                 return;
             }
 
             if (['kick', 'ban', 'unban', 'mute', 'unmute', 'warn', 'warnings'].includes(commandName)) {
                 if (commandName === 'warnings' && !q && !msg.reply_to_message) {
-                    await tgBot.sendMessage(chatId, 'Use /warnings while replying to a member’s message.');
+                    await sendTelegramMessage(chatId, 'Use /warnings while replying to a member’s message.', msg);
                     return;
                 }
                 if (!await requireTelegramGroupAdmin(msg)) return;
                 const target = getTelegramTarget(msg, parts);
-                if (!target) return tgBot.sendMessage(chatId, 'Reply to the member’s message or provide their numeric Telegram user ID.');
+                if (!target) return sendTelegramMessage(chatId, 'Reply to the member’s message or provide their numeric Telegram user ID.', msg);
                 const label = telegramTargetLabel(target);
                 if (commandName === 'warnings') {
-                    await tgBot.sendMessage(chatId, `⚠️ ${label} has ${telegramGroupWarnings.get(moderationKey(chatId, target.id)) || 0} warning(s).`);
+                    await sendTelegramMessage(chatId, `⚠️ ${label} has ${telegramGroupWarnings.get(moderationKey(chatId, target.id)) || 0} warning(s).`, msg);
                     return;
                 }
                 try {
                     if (commandName === 'kick') {
                         await tgBot.banChatMember(chatId, target.id);
                         await tgBot.unbanChatMember(chatId, target.id, { only_if_banned: true });
-                        await tgBot.sendMessage(chatId, `👋 ${label} was removed from the group.`);
+                        await sendTelegramMessage(chatId, `👋 ${label} was removed from the group.`, msg);
                     } else if (commandName === 'ban') {
                         await tgBot.banChatMember(chatId, target.id);
-                        await tgBot.sendMessage(chatId, `⛔ ${label} was banned by the group moderators.`);
+                        await sendTelegramMessage(chatId, `⛔ ${label} was banned by the group moderators.`, msg);
                     } else if (commandName === 'unban') {
                         await tgBot.unbanChatMember(chatId, target.id, { only_if_banned: true });
-                        await tgBot.sendMessage(chatId, `✅ ${label} may join the group again.`);
+                        await sendTelegramMessage(chatId, `✅ ${label} may join the group again.`, msg);
                     } else if (commandName === 'mute') {
                         const minutes = Math.min(10080, Math.max(1, Number(parts[0]) || 10));
                         await tgBot.restrictChatMember(chatId, target.id, { permissions: { can_send_messages: false }, until_date: Math.floor(Date.now() / 1000) + minutes * 60 });
-                        await tgBot.sendMessage(chatId, `🔇 ${label} is muted for ${minutes} minute(s).`);
+                        await sendTelegramMessage(chatId, `🔇 ${label} is muted for ${minutes} minute(s).`, msg);
                     } else if (commandName === 'unmute') {
                         await tgBot.restrictChatMember(chatId, target.id, { permissions: telegramModerationPermissions });
-                        await tgBot.sendMessage(chatId, `🔊 ${label} can speak again.`);
+                        await sendTelegramMessage(chatId, `🔊 ${label} can speak again.`, msg);
                     } else if (commandName === 'warn') {
                         const key = moderationKey(chatId, target.id);
                         const count = (telegramGroupWarnings.get(key) || 0) + 1;
                         telegramGroupWarnings.set(key, count);
                         if (count >= 3) {
                             await tgBot.restrictChatMember(chatId, target.id, { permissions: { can_send_messages: false }, until_date: Math.floor(Date.now() / 1000) + 30 * 60 });
-                            await tgBot.sendMessage(chatId, `⚠️ ${label} received warning ${count}/3 and is muted for 30 minutes.`);
-                        } else await tgBot.sendMessage(chatId, `⚠️ Warning ${count}/3 for ${label}. Please follow the group rules.`);
+                            await sendTelegramMessage(chatId, `⚠️ ${label} received warning ${count}/3 and is muted for 30 minutes.`, msg);
+                        } else await sendTelegramMessage(chatId, `⚠️ Warning ${count}/3 for ${label}. Please follow the group rules.`, msg);
                     }
-                } catch (error) { await tgBot.sendMessage(chatId, `I could not complete that moderation action. Make sure I am an administrator with the required permissions.`); }
+                } catch (error) { await sendTelegramMessage(chatId, `I could not complete that moderation action. Make sure I am an administrator with the required permissions.`, msg); }
                 return;
             }
 
@@ -1229,30 +1254,30 @@ if (tgBot) {
                     hug: `🤗 Akari gives ${targetName} a gentle virtual hug!`,
                     slap: `🥢 Akari gives ${targetName} a playful bonk—be nice, okay?`
                 };
-                await tgBot.sendMessage(chatId, funReplies[commandName], { parse_mode: 'Markdown' });
+                await sendTelegramMessage(chatId, funReplies[commandName], msg, { parse_mode: 'Markdown' });
                 return;
             }
 
             if (commandName === 'pair') {
-                if (!/^\d{8,18}$/.test(q.replace(/\D/g, ''))) return tgBot.sendMessage(chatId, 'Usage: /pair 2348012345678');
-                try { await session.initialize(q.replace(/\D/g, '')); await tgBot.sendMessage(chatId, 'Pairing session started. Follow the code or QR instructions from the bot.'); } catch (error) { await tgBot.sendMessage(chatId, `Pairing could not start: ${error?.message || 'try again shortly.'}`); }
+                if (!/^\d{8,18}$/.test(q.replace(/\D/g, ''))) return sendTelegramMessage(chatId, 'Usage: /pair 2348012345678', msg);
+                try { await session.initialize(q.replace(/\D/g, '')); await sendTelegramMessage(chatId, 'Pairing session started. Follow the code or QR instructions from the bot.', msg); } catch (error) { await sendTelegramMessage(chatId, `Pairing could not start: ${error?.message || 'try again shortly.'}`, msg); }
                 return;
             }
 
             if (commandName === 'ping') {
-                await tgBot.sendMessage(chatId, `Pong — Telegram and Mystic XMD are connected. Uptime: ${Math.floor(process.uptime())}s`);
+                await sendTelegramMessage(chatId, `Pong — Telegram and Mystic XMD are connected. Uptime: ${Math.floor(process.uptime())}s`, msg);
                 return;
             }
 
             if (commandName === 'akari') {
-                if (!q) return tgBot.sendMessage(chatId, 'Usage: /akari your message');
-                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes, telegramQuoteOptions(msg)); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'Akari is temporarily unavailable. Please try again.'); }
+                if (!q) return sendTelegramMessage(chatId, 'Usage: /akari your message', msg);
+                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes, telegramQuoteOptions(msg)); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await sendTelegramMessage(chatId, 'Akari is temporarily unavailable. Please try again.', msg); }
                 return;
             }
 
             if (commandName === 'ai') {
-                if (!q) return tgBot.sendMessage(chatId, 'Usage: /ai your message');
-                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes, telegramQuoteOptions(msg)); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'The AI companion is temporarily unavailable. Please try again.'); }
+                if (!q) return sendTelegramMessage(chatId, 'Usage: /ai your message', msg);
+                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes, telegramQuoteOptions(msg)); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await sendTelegramMessage(chatId, 'The AI companion is temporarily unavailable. Please try again.', msg); }
                 return;
             }
 
@@ -1260,8 +1285,8 @@ if (tgBot) {
                 if (commandName === 'anime') await commands.anime(tgSock, chatId, msg, q);
                 else if (commandName === 'song') await commands.song(tgSock, chatId, msg, parts);
                 else if (commandName === 'waifu') await commands.animemaker(tgSock, chatId, msg, 'waifu');
-                else await tgBot.sendMessage(chatId, 'I do not know that command yet. Send /menu for the available options, or just write a normal message.');
-            } catch (error) { console.error('Telegram command failed:', error?.message || error); await tgBot.sendMessage(chatId, 'That command failed temporarily. Please try again.'); }
+                else await sendTelegramMessage(chatId, 'I do not know that command yet. Send /menu for the available options, or just write a normal message.', msg);
+            } catch (error) { console.error('Telegram command failed:', error?.message || error); await sendTelegramMessage(chatId, 'That command failed temporarily. Please try again.', msg); }
             return;
         }
 
@@ -1272,7 +1297,7 @@ if (tgBot) {
             await sendAkariSticker(chatId, 'expressive', isGroup);
         } catch (error) {
             console.error('Telegram chatbot failed:', error?.message || error);
-            await tgBot.sendMessage(chatId, 'The chatbot is temporarily unavailable. Please try again.');
+            await sendTelegramMessage(chatId, 'The chatbot is temporarily unavailable. Please try again.', msg);
         }
     });
 }
