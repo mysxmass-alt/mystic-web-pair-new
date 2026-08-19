@@ -1052,8 +1052,28 @@ const telegramQuickActions = {
     leaderboard: { label: 'Leaderboard', icon: '🏆', command: '/leaderboard', prompt: 'Explain how the Mystic XMD leaderboard works and how to view it.' },
     help: { label: 'Help', icon: '❓', command: '/help', prompt: 'Give the user a clean summary of the available Mystic XMD bot features.' }
 };
-const telegramQuickKeyboard = () => ({ inline_keyboard: [['casino', 'anime'], ['balance', 'games'], ['leaderboard', 'help']].map(row => row.map(key => ({ text: `${telegramQuickActions[key].icon} ${telegramQuickActions[key].label}`, callback_data: `quick:${key}` }))) });
-const telegramMenuText = `*AKARI — MYSTIC XMD*\n\nChoose an action below, ne? 🌸`;
+const telegramMainKeyboard = () => ({ keyboard: [['🎰 Casino', '🎴 Anime Cards'], ['💰 Balance', '🎮 Games'], ['🏆 Leaderboard', '💹 Economy']], resize_keyboard: true, is_persistent: true, input_field_placeholder: 'Choose an Akari feature…' });
+const telegramQuickKeyboard = () => ({ inline_keyboard: [['🎰 Casino', '🎴 Anime Cards'], ['💰 Balance', '🎮 Games'], ['🏆 Leaderboard', '💹 Economy'], ['❓ Help']].map(row => row.map(label => ({ text: label, callback_data: `category:${label.split(' ').slice(1).join('_').toLowerCase() || 'help'}` }))) });
+const telegramCategoryKeyboards = {
+    casino: { title: '🎰 *Casino Center*', rows: [['🎰 Slots', '🎲 Dice'], ['🎡 Roulette', '🃏 Blackjack'], ['🪙 Coinflip', '🎟️ Lottery'], ['⬅️ Back to Menu']] },
+    anime_cards: { title: '🎴 *Anime Card Studio*', rows: [['🎴 Draw Card', '📚 My Collection'], ['🔄 Trade Cards', '🏆 Card Leaderboard'], ['🛒 Card Shop', '💸 Sell Card'], ['⬅️ Back to Menu']] },
+    balance: { title: '💰 *Wallet Center*', rows: [['💰 Balance', '🎁 Daily'], ['🎉 Bonus', '🏦 Deposit'], ['💸 Withdraw', '❓ Economy Help'], ['⬅️ Back to Menu']] },
+    games: { title: '🎮 *Games Arcade*', rows: [['🎲 Roll', '🔮 8ball'], ['💞 Ship', '🤗 Hug'], ['🥢 Slap', '❓ Game Help'], ['⬅️ Back to Menu']] },
+    leaderboard: { title: '🏆 *Leaderboard Hall*', rows: [['🏆 Global Rank', '🎴 Card Rank'], ['💰 Rich List', '🎮 Game Rank'], ['⬅️ Back to Menu']] },
+    economy: { title: '💹 *Economy Center*', rows: [['💰 Balance', '🎁 Daily'], ['🎉 Bonus', '🏦 Deposit'], ['💸 Withdraw', '❓ Economy Help'], ['⬅️ Back to Menu']] }
+};
+const telegramCategoryKeyboard = (key) => ({ inline_keyboard: (telegramCategoryKeyboards[key]?.rows || [['⬅️ Back to Menu']]).map(row => row.map(label => ({ text: label, callback_data: `feature:${key}:${label.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase()}` }))) });
+const telegramMenuText = `*「 AKARI 」 MYSTIC XMD*
+
+> 🌸 Your friendly anime-inspired companion is ready.
+> Choose a feature below and I’ll guide you step by step.
+
+*Main features:* Casino • Anime Cards • Wallet • Games • Rankings`;
+const sendTelegramMainMenu = async (chatId, source) => {
+    try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramMainKeyboard(), ...telegramQuoteOptions(source) }); }
+    catch (error) { await sendTelegramMessage(chatId, telegramMenuText, source, { parse_mode: 'Markdown', reply_markup: telegramMainKeyboard() }); }
+    return sendTelegramMessage(chatId, '> Tap a category to open its feature panel.', source, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() });
+};
 
 const telegramGroupRules = new Map();
 const telegramGroupWarnings = new Map();
@@ -1103,16 +1123,39 @@ if (tgBot) {
 
     tgBot.on('callback_query', async (query) => {
         const chatId = query.message?.chat?.id;
-        const actionKey = String(query.data || '').replace(/^quick:/, '');
-        const action = telegramQuickActions[actionKey];
-        if (!chatId || !action) return;
-        try { await tgBot.answerCallbackQuery(query.id, { text: `${action.label} selected` }); } catch (error) {}
+        const data = String(query.data || '');
+        if (!chatId) return;
+        try { await tgBot.answerCallbackQuery(query.id); } catch (error) {}
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
         if (await handleTelegramJoinFailure(tgBot, query.message, joinStatus)) return;
-        if (actionKey === 'help') {
-            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message) }); } catch (error) { await sendTelegramMessage(chatId, telegramMenuText, query.message, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
+
+        if (data.startsWith('category:')) {
+            const key = data.slice('category:'.length);
+            if (key === 'help') return sendTelegramMainMenu(chatId, query.message);
+            const category = telegramCategoryKeyboards[key];
+            if (!category) return sendTelegramMainMenu(chatId, query.message);
+            return sendTelegramMessage(chatId, `${category.title}\n\n> Choose an action below, and Akari will guide you.`, query.message, { parse_mode: 'Markdown', reply_markup: telegramCategoryKeyboard(key) });
+        }
+
+        if (data.startsWith('feature:')) {
+            const [, key, feature] = data.split(':');
+            if (feature === 'back_to_menu') return sendTelegramMainMenu(chatId, query.message);
+            const category = telegramCategoryKeyboards[key];
+            const readable = String(feature || '').replace(/_/g, ' ');
+            const label = readable.replace(/\b\w/g, letter => letter.toUpperCase());
+            try {
+                const session = getTelegramSession(chatId);
+                await tgBot.sendChatAction(chatId, 'typing');
+                await sendTelegramMessage(chatId, `${category?.title || '*Akari Feature*'}\n\n> *${label}* selected.\n> Preparing your guide…`, query.message, { parse_mode: 'Markdown' });
+                const prompt = `The user selected the ${label} feature from the ${key} panel. Explain how to use it in Mystic XMD. If it is not implemented yet, clearly say it is a guided preview and do not invent transactions, balances, rewards, or game results.`;
+                await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), prompt, query.from?.first_name || 'User'), telegramQuoteOptions(query.message));
+            } catch (error) { await sendTelegramMessage(chatId, `Akari could not open ${label} right now. Please try again.`, query.message); }
             return;
         }
+
+        const actionKey = data.replace(/^quick:/, '');
+        const action = telegramQuickActions[actionKey];
+        if (!action) return sendTelegramMainMenu(chatId, query.message);
         try {
             const session = getTelegramSession(chatId);
             await tgBot.sendChatAction(chatId, 'typing');
@@ -1173,7 +1216,7 @@ if (tgBot) {
             const tgSock = createTelegramTransport(chatId, msg);
 
             if (commandName === 'start' || commandName === 'help' || commandName === 'menu' || commandName === 'buttons' || commandName === 'panel') {
-                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(msg) }); } catch (error) { await sendTelegramMessage(chatId, telegramMenuText, msg, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
+                await sendTelegramMainMenu(chatId, msg);
                 return;
             }
 
