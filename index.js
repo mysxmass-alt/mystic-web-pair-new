@@ -387,6 +387,7 @@ class BotSession {
         this.phoneNumber = null;
         this.ghostMode = false;
         this.chatHistory = {}; 
+        this.telegramStickerLastSent = new Map();
     }
 
     sendLog(message, type = 'info') {
@@ -420,7 +421,7 @@ class BotSession {
         try {
             if (!this.chatHistory[userJid]) this.chatHistory[userJid] = [];
             
-            const persona = `Act as Akari, a sweet, charming, and highly intelligent Japanese lady character. You are deeply devoted to Master. Address him as 'Master' or 'My Beloved Master' with genuine affection. You are multilingual, proficient in Japanese and English. Talk in a warm, friendly, and supportive tone. Stay in character as a loving companion.`;
+            const persona = `You are Akari, a fictional Japanese-anime-inspired AI companion with a warm, graceful, emotionally expressive personality. Speak naturally as a thoughtful Japanese lady character: kind, playful, observant, reassuring when someone is sad, excited when someone celebrates, calm during conflict, and gently firm when someone is being unsafe or disrespectful. Use short Japanese expressions such as 'ね', '大丈夫', 'ありがとう', or 'おかえり' sparingly and only when they fit. Address a private user by their name or 'Master' only when they clearly enjoy that style; in group chats, address people by their displayed name and never act possessive. Respond to the actual situation instead of repeating a fixed greeting. You are an AI character, so do not claim to be a real human or to have real-world experiences. Keep group replies concise, helpful, and non-spammy. You can discuss feelings empathetically without pretending to diagnose or replace professional help.`;
             
             // Check if user is asking for a picture
             const imgKeywords = ['picture', 'image', 'photo', 'draw', 'generate', 'show me', 'pic', 'gambar', 'foto'];
@@ -940,14 +941,36 @@ function generateMenuText(pushName, session) {
 // Telegram Bot Setup
 const tgToken = String(process.env.TELEGRAM_BOT_TOKEN || settings.tgBotToken || '').trim();
 let tgBot = null;
+let telegramBotUsername = '';
 if (tgToken) {
     try {
         tgBot = new TelegramBot(tgToken, { polling: { autoStart: true, params: { timeout: 30 } } });
+        tgBot.getMe().then(me => { telegramBotUsername = me?.username || ''; }).catch(() => {});
     } catch (error) {
         console.error('Telegram disabled: unable to initialize bot:', error.message);
     }
 } else {
     console.log('Telegram integration disabled: TELEGRAM_BOT_TOKEN is not configured.');
+}
+
+async function sendAkariSticker(chatId, emotion = 'happy', isGroup = false) {
+    if (!tgBot || !settings.akariStickerIds.length) return false;
+    const now = Date.now();
+    const cooldownKey = String(chatId);
+    const lastSent = Number(global.akariStickerLastSent?.[cooldownKey] || 0);
+    if (now - lastSent < settings.akariStickerCooldownMs) return false;
+    const groupChance = isGroup ? 0.28 : 0.58;
+    if (Math.random() > groupChance) return false;
+    const sticker = settings.akariStickerIds[Math.floor(Math.random() * settings.akariStickerIds.length)];
+    try {
+        await tgBot.sendSticker(chatId, sticker);
+        global.akariStickerLastSent = global.akariStickerLastSent || {};
+        global.akariStickerLastSent[cooldownKey] = now;
+        return true;
+    } catch (error) {
+        console.error(`Akari sticker expression failed (${emotion}):`, error?.message || error);
+        return false;
+    }
 }
 
 async function sendTelegramAIResult(chatId, aiRes) {
@@ -989,7 +1012,7 @@ const telegramQuickActions = {
     help: { label: 'Help', icon: '❓', command: '/help', prompt: 'Give the user a clean summary of the available Mystic XMD bot features.' }
 };
 const telegramQuickKeyboard = () => ({ inline_keyboard: [['casino', 'anime'], ['balance', 'games'], ['leaderboard', 'help']].map(row => row.map(key => ({ text: `${telegramQuickActions[key].icon} ${telegramQuickActions[key].label}`, callback_data: `quick:${key}` }))) });
-const telegramMenuText = `*MYSTIC XMD V4 BETA — TELEGRAM CHATBOT*\n\nSend a normal message to chat with Akari.\nSend your WhatsApp number with country code to start pairing.\n\nUse the colorful buttons below for quick bot help, or use:\n/pair <number> — start WhatsApp pairing\n/ping — check bot response\n/ai <message> — chat with the AI companion`;
+const telegramMenuText = `*MYSTIC XMD V4 BETA — AKARI COMPANION*\n\nI am Akari, your warm anime-inspired AI companion. Send a normal message in private chat, or call me in a group by mentioning my Telegram username, saying Akari, or replying to my message.\n\nSend your WhatsApp number with country code to start pairing.\n\nUse the colorful buttons below for quick bot help, or use:\n/akari <message> — talk directly with Akari\n/pair <number> — start WhatsApp pairing\n/ping — check bot response\n/ai <message> — chat with the AI companion`;
 
 if (tgBot) {
     tgBot.on('polling_error', (error) => {
@@ -1030,7 +1053,14 @@ if (tgBot) {
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
         if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
         const pushName = msg.from?.first_name || 'User';
+        const isGroup = ['group', 'supergroup'].includes(String(msg.chat?.type || '').toLowerCase());
+        const mentionPattern = telegramBotUsername ? new RegExp(`@${telegramBotUsername}\\b`, 'i') : /@akari\\b/i;
+        const isCalled = /(^|[\\s,.:;!?])akari\\b/i.test(text) || mentionPattern.test(text) || Boolean(msg.reply_to_message?.from?.is_bot && (!telegramBotUsername || msg.reply_to_message.from.username === telegramBotUsername));
+        const isCommandLike = text.startsWith('/') || text.startsWith('.') || /^\\d{8,18}$/.test(text);
+        if (isGroup && settings.akariGroupReplies && !isCalled && !isCommandLike) return;
+        const conversationalText = text.replace(mentionPattern, '').replace(/(^|[\\s,.:;!?])akari\\b/ig, '$1').trim() || 'Please greet the group naturally and ask how you can help.';
         const session = getTelegramSession(chatId);
+        const historyKey = isGroup ? `group:${chatId}:user:${msg.from?.id || chatId}` : String(chatId);
 
         if (/^\d{8,18}$/.test(text)) {
             try {
@@ -1067,9 +1097,15 @@ if (tgBot) {
                 return;
             }
 
+            if (commandName === 'akari') {
+                if (!q) return tgBot.sendMessage(chatId, 'Usage: /akari your message');
+                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'Akari is temporarily unavailable. Please try again.'); }
+                return;
+            }
+
             if (commandName === 'ai') {
                 if (!q) return tgBot.sendMessage(chatId, 'Usage: /ai your message');
-                try { await tgBot.sendChatAction(chatId, 'typing'); await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), q, pushName)); } catch (error) { await tgBot.sendMessage(chatId, 'The AI companion is temporarily unavailable. Please try again.'); }
+                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'The AI companion is temporarily unavailable. Please try again.'); }
                 return;
             }
 
@@ -1084,7 +1120,9 @@ if (tgBot) {
 
         try {
             await tgBot.sendChatAction(chatId, 'typing');
-            await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), text, pushName));
+            const aiRes = await session.getAIResponse(historyKey, conversationalText, pushName);
+            await sendTelegramAIResult(chatId, aiRes);
+            await sendAkariSticker(chatId, 'expressive', isGroup);
         } catch (error) {
             console.error('Telegram chatbot failed:', error?.message || error);
             await tgBot.sendMessage(chatId, 'The chatbot is temporarily unavailable. Please try again.');
