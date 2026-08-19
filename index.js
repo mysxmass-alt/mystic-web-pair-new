@@ -973,15 +973,17 @@ async function sendAkariSticker(chatId, emotion = 'happy', isGroup = false) {
     }
 }
 
-async function sendTelegramAIResult(chatId, aiRes) {
+async function sendTelegramAIResult(chatId, aiRes, replyOptions = {}) {
     if (!aiRes) return;
-    if (aiRes.type === 'image') return tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption || '' });
-    if (aiRes.type === 'voice') return tgBot.sendAudio(chatId, aiRes.url, { title: 'Mystic voice reply' });
+    if (aiRes.type === 'image') return tgBot.sendPhoto(chatId, aiRes.url, { caption: aiRes.caption || '', ...replyOptions });
+    if (aiRes.type === 'voice') return tgBot.sendAudio(chatId, aiRes.url, { title: 'Mystic voice reply', ...replyOptions });
     if (aiRes.type === 'sticker') {
-        try { return await tgBot.sendSticker(chatId, aiRes.url); } catch (error) { return tgBot.sendPhoto(chatId, aiRes.url, { caption: 'Here is your sticker.' }); }
+        try { return await tgBot.sendSticker(chatId, aiRes.url, replyOptions); } catch (error) { return tgBot.sendPhoto(chatId, aiRes.url, { caption: 'Here is your sticker.', ...replyOptions }); }
     }
-    return tgBot.sendMessage(chatId, aiRes.content || String(aiRes));
+    return tgBot.sendMessage(chatId, aiRes.content || String(aiRes), replyOptions);
 }
+
+const telegramQuoteOptions = (msg) => settings.telegramQuoteReplies && msg?.message_id ? { reply_to_message_id: msg.message_id, allow_sending_without_reply: true } : {};
 
 function createTelegramTransport(chatId, msg) {
     return {
@@ -1012,10 +1014,12 @@ const telegramQuickActions = {
     help: { label: 'Help', icon: '❓', command: '/help', prompt: 'Give the user a clean summary of the available Mystic XMD bot features.' }
 };
 const telegramQuickKeyboard = () => ({ inline_keyboard: [['casino', 'anime'], ['balance', 'games'], ['leaderboard', 'help']].map(row => row.map(key => ({ text: `${telegramQuickActions[key].icon} ${telegramQuickActions[key].label}`, callback_data: `quick:${key}` }))) });
-const telegramMenuText = `*MYSTIC XMD V4 BETA — AKARI COMPANION*\n\nI am Akari, your warm anime-inspired AI companion. Send a normal message in private chat, or call me in a group by mentioning my Telegram username, saying Akari, or replying to my message.\n\nSend your WhatsApp number with country code to start pairing.\n\nUse the colorful buttons below for quick bot help, or use:\n/akari <message> — talk directly with Akari\n/pair <number> — start WhatsApp pairing\n/ping — check bot response\n/ai <message> — chat with the AI companion`;
+const telegramMenuText = `*AKARI — MYSTIC XMD*\n\nChoose an action below, ne? 🌸`;
 
 const telegramGroupRules = new Map();
 const telegramGroupWarnings = new Map();
+const telegramAntiLinkChats = new Map();
+const telegramLinkPattern = /(?:https?:\/\/|www\.|t\.me\/|telegram\.me\/|discord\.gg\/|chat\.whatsapp\.com\/|wa\.me\/)/i;
 const telegramModerationPermissions = { can_send_messages: true, can_send_audios: true, can_send_documents: true, can_send_photos: true, can_send_videos: true, can_send_video_notes: true, can_send_voice_notes: true, can_send_polls: true, can_send_other_messages: true, can_add_web_page_previews: true, can_change_info: false, can_invite_users: true, can_pin_messages: false, can_manage_topics: false };
 const isTelegramGroupMessage = (msg) => ['group', 'supergroup'].includes(String(msg?.chat?.type || '').toLowerCase());
 const getTelegramTarget = (msg, args = []) => {
@@ -1044,6 +1048,7 @@ async function requireTelegramGroupAdmin(msg) {
 }
 const moderationKey = (chatId, userId) => `${chatId}:${userId}`;
 const getGroupRules = (chatId) => telegramGroupRules.get(String(chatId)) || 'Be kind, avoid spam, respect everyone, and keep the group welcoming.';
+const isTelegramAntiLinkEnabled = (chatId) => telegramAntiLinkChats.has(String(chatId)) ? telegramAntiLinkChats.get(String(chatId)) : settings.telegramAntiLinkEnabled;
 
 if (tgBot) {
     tgBot.on('polling_error', (error) => {
@@ -1066,14 +1071,14 @@ if (tgBot) {
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
         if (await handleTelegramJoinFailure(tgBot, query.message, joinStatus)) return;
         if (actionKey === 'help') {
-            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
+            try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message || msg) }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(query.message || msg) }); }
             return;
         }
         try {
             const session = getTelegramSession(chatId);
             await tgBot.sendChatAction(chatId, 'typing');
             await tgBot.sendMessage(chatId, `${action.icon} *${action.label} selected*\nCommand: \`${action.command}\`\n\nPreparing a quick guide…`, { parse_mode: 'Markdown' });
-            await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), action.prompt, query.from?.first_name || 'User'));
+            await sendTelegramAIResult(chatId, await session.getAIResponse(chatId.toString(), action.prompt, query.from?.first_name || 'User'), telegramQuoteOptions(query.message));
         } catch (error) { await tgBot.sendMessage(chatId, `Use ${action.command} in Telegram or WhatsApp. The quick guide is temporarily unavailable.`); }
     });
 
@@ -1090,6 +1095,12 @@ if (tgBot) {
         }
         const text = String(msg.text || '').trim();
         if (!text) return;
+        const isGroupChat = isTelegramGroupMessage(msg);
+        if (isGroupChat && isTelegramAntiLinkEnabled(chatId) && telegramLinkPattern.test(text) && !(await isTelegramGroupAdmin(chatId, msg.from?.id))) {
+            try { await tgBot.deleteMessage(chatId, msg.message_id); } catch (error) { console.error('Anti-link delete failed:', error?.message || error); }
+            try { await tgBot.sendMessage(chatId, '🚫 Links are not allowed here. Please ask an admin before sharing one.', telegramQuoteOptions(msg)); } catch (error) {}
+            return;
+        }
         const joinStatus = await checkTelegramForceJoin(tgBot, chatId);
         if (await handleTelegramJoinFailure(tgBot, msg, joinStatus)) return;
         const pushName = msg.from?.first_name || 'User';
@@ -1122,7 +1133,17 @@ if (tgBot) {
             const tgSock = createTelegramTransport(chatId, msg);
 
             if (commandName === 'start' || commandName === 'help' || commandName === 'menu' || commandName === 'buttons' || commandName === 'panel') {
-                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard() }); }
+                try { await tgBot.sendPhoto(chatId, settings.startimage, { caption: telegramMenuText, parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(msg) }); } catch (error) { await tgBot.sendMessage(chatId, telegramMenuText, { parse_mode: 'Markdown', reply_markup: telegramQuickKeyboard(), ...telegramQuoteOptions(msg) }); }
+                return;
+            }
+
+            if (commandName === 'antilink') {
+                if (!await requireTelegramGroupAdmin(msg)) return;
+                const mode = (q || 'status').toLowerCase();
+                if (mode === 'on' || mode === 'enable') telegramAntiLinkChats.set(String(chatId), true);
+                else if (mode === 'off' || mode === 'disable') telegramAntiLinkChats.set(String(chatId), false);
+                const status = isTelegramAntiLinkEnabled(chatId) ? 'ON' : 'OFF';
+                await tgBot.sendMessage(chatId, `🔗 Anti-link is now *${status}* for this group.`, { parse_mode: 'Markdown', ...telegramQuoteOptions(msg) });
                 return;
             }
 
@@ -1210,13 +1231,13 @@ if (tgBot) {
 
             if (commandName === 'akari') {
                 if (!q) return tgBot.sendMessage(chatId, 'Usage: /akari your message');
-                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'Akari is temporarily unavailable. Please try again.'); }
+                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes, telegramQuoteOptions(msg)); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'Akari is temporarily unavailable. Please try again.'); }
                 return;
             }
 
             if (commandName === 'ai') {
                 if (!q) return tgBot.sendMessage(chatId, 'Usage: /ai your message');
-                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'The AI companion is temporarily unavailable. Please try again.'); }
+                try { await tgBot.sendChatAction(chatId, 'typing'); const aiRes = await session.getAIResponse(historyKey, q, pushName); await sendTelegramAIResult(chatId, aiRes, telegramQuoteOptions(msg)); await sendAkariSticker(chatId, 'thoughtful', isGroup); } catch (error) { await tgBot.sendMessage(chatId, 'The AI companion is temporarily unavailable. Please try again.'); }
                 return;
             }
 
@@ -1232,7 +1253,7 @@ if (tgBot) {
         try {
             await tgBot.sendChatAction(chatId, 'typing');
             const aiRes = await session.getAIResponse(historyKey, conversationalText, pushName);
-            await sendTelegramAIResult(chatId, aiRes);
+            await sendTelegramAIResult(chatId, aiRes, telegramQuoteOptions(msg));
             await sendAkariSticker(chatId, 'expressive', isGroup);
         } catch (error) {
             console.error('Telegram chatbot failed:', error?.message || error);
