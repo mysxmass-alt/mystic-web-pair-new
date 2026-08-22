@@ -954,8 +954,7 @@ let tgBot = null;
 let telegramBotUsername = '';
 if (tgToken) {
     try {
-        tgBot = new TelegramBot(tgToken, { polling: { autoStart: true, params: { timeout: 30 } } });
-        tgBot.on('polling_error', error => console.error('Telegram polling error:', error?.code || '', error?.message || error));
+        tgBot = new TelegramBot(tgToken, { polling: false });
         tgBot.getMe().then(async me => {
             telegramBotUsername = me?.username || '';
             try {
@@ -1140,12 +1139,7 @@ const isTelegramAntiLinkEnabled = (chatId) => telegramAntiLinkChats.has(String(c
 
 if (tgBot) {
     tgBot.on('polling_error', (error) => {
-        const message = error?.message || 'unknown polling error';
-        console.error('Telegram polling error:', message);
-        if (/\b409\b|\b401\b|\b403\b/.test(message)) {
-            tgBot.stopPolling().catch(() => {});
-            console.error('Telegram polling stopped. Check the token and make sure no second bot instance is running.');
-        }
+        console.error('Telegram polling error:', error?.code || '', error?.message || error);
     });
 
     tgBot.on('error', (error) => console.error('Telegram bot error:', error?.message || error));
@@ -1383,9 +1377,9 @@ if (tgBot) {
             console.error('Telegram chatbot failed:', error?.message || error);
             await sendTelegramMessage(chatId, 'The chatbot is temporarily unavailable. Please try again.', msg);
         }
-    });
+        });
+    tgBot.startPolling().catch(error => console.error('Telegram polling could not start:', error?.message || error));
 }
-
 // Web Server Setup
 const app = express();
 const server = http.createServer(app);
