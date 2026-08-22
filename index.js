@@ -1062,8 +1062,9 @@ const telegramQuickActions = {
     leaderboard: { label: 'Leaderboard', icon: '🏆', command: '/leaderboard', prompt: 'Explain how the Mystic XMD leaderboard works and how to view it.' },
     help: { label: 'Help', icon: '❓', command: '/help', prompt: 'Give the user a clean summary of the available Mystic XMD bot features.' }
 };
-const telegramMainKeyboard = () => ({ keyboard: [['🟥 Casino', '🟩 Anime Cards'], ['🟦 Balance', '🟢 Games'], ['🟨 Leaderboard', '🟪 Economy']], resize_keyboard: true, is_persistent: true, input_field_placeholder: 'Choose an Akari feature…' });
-const telegramQuickKeyboard = () => ({ inline_keyboard: [['🟥 Casino', '🟩 Anime Cards'], ['🟦 Balance', '🟢 Games'], ['🟨 Leaderboard', '🟪 Economy'], ['❓ Help']].map(row => row.map(label => ({ text: label, callback_data: `category:${label.split(' ').slice(1).join('_').toLowerCase() || 'help'}` }))) });
+const telegramMainKeyboard = () => ({ inline_keyboard: [['Casino', 'Anime Cards'], ['Balance', 'Games'], ['Leaderboard', 'Economy'], [{ text: 'Main Channel', url: settings.whatsappChannel }]] });
+const telegramCategoryButtonKeys = { Casino: 'casino', 'Anime Cards': 'anime_cards', Balance: 'balance', Games: 'games', Leaderboard: 'leaderboard', Economy: 'economy', Help: 'help' };
+const telegramQuickKeyboard = () => ({ inline_keyboard: [['Casino', 'Anime Cards'], ['Balance', 'Games'], ['Leaderboard', 'Economy'], ['Help'], [{ text: 'Main Channel', url: settings.whatsappChannel }]].map(row => row.map(label => typeof label === 'string' ? ({ text: label, callback_data: `category:${telegramCategoryButtonKeys[label] || 'help'}` }) : label)) });
 const telegramCategoryKeyboards = {
     casino: { title: '🎰 *Casino Center*', rows: [['🎰 Slots', '🎲 Dice'], ['🎡 Roulette', '🃏 Blackjack'], ['🪙 Coinflip', '🎟️ Lottery'], ['⬅️ Back to Menu']] },
     anime_cards: { title: '🎴 *Anime Card Studio*', rows: [['🎴 Draw Card', '📚 My Collection'], ['🔄 Trade Cards', '🏆 Card Leaderboard'], ['🛒 Card Shop', '💸 Sell Card'], ['⬅️ Back to Menu']] },
@@ -1085,7 +1086,7 @@ const telegramGameReply = (feature, name = 'friend') => {
     return replies[feature] || `🎮 *Games Arcade*\n\n> Choose a game button below, ${target}.`;
 };
 const telegramButtonLookup = {
-    '🟥 casino': 'casino', '🟩 anime cards': 'anime_cards', '🟦 balance': 'balance', '🟢 games': 'games', '🟨 leaderboard': 'leaderboard', '🟪 economy': 'economy',
+    'casino': 'casino', 'anime cards': 'anime_cards', 'balance': 'balance', 'games': 'games', 'leaderboard': 'leaderboard', 'economy': 'economy',
     '🎲 roll': 'roll', '🔮 8ball': '8ball', '💞 ship': 'ship', '🤗 hug': 'hug', '🥢 slap': 'slap'
 };
 const telegramMenuText = `*「 AKARI 」 MYSTIC XMD*
