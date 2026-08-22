@@ -955,6 +955,7 @@ let telegramBotUsername = '';
 if (tgToken) {
     try {
         tgBot = new TelegramBot(tgToken, { polling: { autoStart: true, params: { timeout: 30 } } });
+        tgBot.on('polling_error', error => console.error('Telegram polling error:', error?.code || '', error?.message || error));
         tgBot.getMe().then(async me => {
             telegramBotUsername = me?.username || '';
             try {
@@ -1062,9 +1063,11 @@ const telegramQuickActions = {
     leaderboard: { label: 'Leaderboard', icon: '🏆', command: '/leaderboard', prompt: 'Explain how the Mystic XMD leaderboard works and how to view it.' },
     help: { label: 'Help', icon: '❓', command: '/help', prompt: 'Give the user a clean summary of the available Mystic XMD bot features.' }
 };
-const telegramMainKeyboard = () => ({ inline_keyboard: [['Casino', 'Anime Cards'], ['Balance', 'Games'], ['Leaderboard', 'Economy'], [{ text: 'Main Channel', url: settings.whatsappChannel }]] });
+const telegramChannelUrl = String(process.env.TELEGRAM_CHANNEL_URL || settings.whatsappChannel || '').trim();
+const telegramUrlButton = /^https?:\/\/[^\s]+$/i.test(telegramChannelUrl) ? { text: 'Main Channel', url: telegramChannelUrl } : null;
+const telegramMainKeyboard = () => ({ inline_keyboard: [['Casino', 'Anime Cards'], ['Balance', 'Games'], ['Leaderboard', 'Economy'], ...(telegramUrlButton ? [[telegramUrlButton]] : [])] });
 const telegramCategoryButtonKeys = { Casino: 'casino', 'Anime Cards': 'anime_cards', Balance: 'balance', Games: 'games', Leaderboard: 'leaderboard', Economy: 'economy', Help: 'help' };
-const telegramQuickKeyboard = () => ({ inline_keyboard: [['Casino', 'Anime Cards'], ['Balance', 'Games'], ['Leaderboard', 'Economy'], ['Help'], [{ text: 'Main Channel', url: settings.whatsappChannel }]].map(row => row.map(label => typeof label === 'string' ? ({ text: label, callback_data: `category:${telegramCategoryButtonKeys[label] || 'help'}` }) : label)) });
+const telegramQuickKeyboard = () => ({ inline_keyboard: [['Casino', 'Anime Cards'], ['Balance', 'Games'], ['Leaderboard', 'Economy'], ['Help'], ...(telegramUrlButton ? [[telegramUrlButton]] : [])].map(row => row.map(label => typeof label === 'string' ? ({ text: label, callback_data: `category:${telegramCategoryButtonKeys[label] || 'help'}` }) : label)) });
 const telegramCategoryKeyboards = {
     casino: { title: '🎰 *Casino Center*', rows: [['🎰 Slots', '🎲 Dice'], ['🎡 Roulette', '🃏 Blackjack'], ['🪙 Coinflip', '🎟️ Lottery'], ['⬅️ Back to Menu']] },
     anime_cards: { title: '🎴 *Anime Card Studio*', rows: [['🎴 Draw Card', '📚 My Collection'], ['🔄 Trade Cards', '🏆 Card Leaderboard'], ['🛒 Card Shop', '💸 Sell Card'], ['⬅️ Back to Menu']] },
